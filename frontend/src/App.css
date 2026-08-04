@@ -1,0 +1,39 @@
+.chatbox {
+  margin-top: 30px;
+  width: 500px;
+}
+
+.chat-window {
+  height: 250px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 15px;
+}
+
+.student-message {
+  background: #e5e7eb;
+  padding: 10px;
+  margin: 10px;
+  border-radius: 10px;
+}
+
+.astra-message {
+  background: #dbeafe;
+  padding: 10px;
+  margin: 10px;
+  border-radius: 10px;
+}
+
+.chat-input {
+  display: flex;
+  margin-top: 10px;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 10px;
+}
+
+.chat-input button {
+  padding: 10px 20px;
+}
