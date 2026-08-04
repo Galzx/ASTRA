@@ -1,11 +1,16 @@
-# Node modules
-**/node_modules/
+# Dependencies
+node_modules/
 
-# Environment variables
+# Environment files
 .env
+.env.*
 
-# Build output
+# Build files
 dist/
+build/
+
+# Database
+backend/database/*.db
 
 # Logs
 *.log
