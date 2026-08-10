@@ -18,3 +18,5 @@ backend/database/*.db
 # OS files
 .DS_Store
 Thumbs.db
+
+.env

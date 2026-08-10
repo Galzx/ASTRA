@@ -1,0 +1,437 @@
+.login-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* base gradient behind the star field — light mode: soft pale sky,
+   dark mode: deep space navy/black */
+.login-page-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(ellipse 120% 100% at 15% 10%, #eef1ff 0%, #dfe6fb 45%, #d3ddf5 100%);
+  transition: background-color 0.4s ease;
+}
+
+.dark-mode .login-page-bg {
+  background: radial-gradient(ellipse 120% 100% at 15% 10%, #131a33 0%, #0a0e1f 45%, #020308 100%);
+}
+
+.login-starfield {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+/* ---------- glass card ---------- */
+
+.login-split-card {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  width: 100%;
+  max-width: 860px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 25px 70px -25px rgba(15, 23, 42, 0.35);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  transition: height 0.5s cubic-bezier(0.34, 1.2, 0.64, 1), background-color 0.4s ease, border-color 0.4s ease;
+}
+
+.dark-mode .login-split-card {
+  background: rgba(13, 16, 28, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 70px -25px rgba(0, 0, 0, 0.7), 0 0 60px -20px rgba(99, 102, 241, 0.25);
+}
+
+/* ---------- fixed form slots (these never move) ---------- */
+
+.slot {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  z-index: 1;
+  visibility: visible;
+  transition: visibility 0s linear 0s;
+}
+
+.slot-left {
+  left: 0;
+}
+
+.slot-right {
+  left: 50%;
+}
+
+/* Delay hiding until the banner has actually finished sliding over this
+   slot (matches the .banner-mask transform transition duration below).
+   Without the delay, content vanishes instantly while the banner is still
+   mid-slide, exposing the card background underneath for a moment. */
+.slot-covered {
+  pointer-events: none;
+  visibility: hidden;
+  transition: visibility 0s linear 0.55s;
+}
+
+.panel-form-inner {
+  width: 100%;
+  padding: 40px 44px;
+  box-sizing: border-box;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.login-brand-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  display: block;
+}
+
+.login-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-h);
+}
+
+.panel-heading {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.panel-subtext {
+  margin: 0 0 22px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.panel-form-inner form {
+  margin-top: 20px;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.field-hint {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.input-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 9px 36px 9px 36px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--text-h);
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.4s ease;
+}
+
+.dark-mode .form-group input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.form-group input::placeholder {
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.input-toggle-btn {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 2px;
+  transition: opacity 0.15s ease;
+}
+
+.input-toggle-btn:hover {
+  opacity: 1;
+}
+
+.role-select {
+  display: flex;
+  gap: 8px;
+}
+
+.role-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.4s ease;
+}
+
+.dark-mode .role-option {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.role-option.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.dark-mode .error-message {
+  background: #2a1414;
+  border-color: #5c2323;
+  color: #fca5a5;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 4px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- banner mask — the only element that slides ---------- */
+
+.banner-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
+  background: linear-gradient(150deg, #3b82f6 0%, #1d4ed8 55%, #1e3a8a 100%);
+  transform: translateX(0%);
+  transition: transform 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.banner-mask.at-right {
+  transform: translateX(100%);
+}
+
+.banner-mask.at-left {
+  transform: translateX(0%);
+}
+
+.panel-banner-inner {
+  width: 100%;
+  padding: 40px 40px;
+  box-sizing: border-box;
+  /* Fade the new text in partway through the slide instead of popping
+     instantly — stays invisible for the first ~45% of the slide (while the
+     banner is still mostly covering the old slot) then eases in, finishing
+     right as the slide itself finishes. Retriggered by remounting via the
+     `key` prop in Login.jsx whenever the mode switches. */
+  animation: bannerContentIn 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@keyframes bannerContentIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  45% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.banner-graphic {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+  margin-bottom: 20px;
+}
+
+.banner-heading {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.banner-body {
+  margin: 0 0 26px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 280px;
+}
+
+.banner-switch-btn {
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: transparent;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.banner-switch-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.85);
+}
+
+.banner-footer-note {
+  margin: 22px 0 0;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* ---------- mobile: stack instead of slide ---------- */
+
+@media (max-width: 700px) {
+  .login-split-card {
+    height: auto !important;
+  }
+
+  .slot {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+
+  .slot:not(.slot-covered) {
+    display: flex;
+  }
+
+  .slot.slot-covered {
+    display: none;
+  }
+
+  .banner-mask {
+    position: static;
+    width: 100%;
+    height: auto;
+    transform: none !important;
+    transition: none;
+    order: -1;
+  }
+
+  .panel-banner-inner {
+    padding: 28px 30px;
+  }
+
+  .banner-body {
+    max-width: none;
+  }
+
+  .panel-form-inner {
+    padding: 30px 26px;
+  }
+}

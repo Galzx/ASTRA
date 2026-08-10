@@ -1,53 +1,155 @@
-const knowledge = [
-    {
-        keywords: ["hello", "hi"],
-        answer:
-        "Hello! I am ASTRA, your AsiaTech Smart Technology & Resource Assistant."
-    },
-
-    {
-        keywords: ["registrar", "office"],
-        answer:
-        "The Registrar's Office is located at the Administration Building."
-    },
-
-    {
-        keywords: ["library"],
-        answer:
-        "The library is available for students during school operating hours."
-    },
-
-    {
-        keywords: ["enrollment"],
-        answer:
-        "Enrollment requirements can be requested from the Registrar's Office."
-    }
-];
+const db = require("../database/database");
+const KnowledgeEntry = require("../models/KnowledgeEntry");
+const { askGemini } = require("../utils/gemini");
 
 
-function searchAnswer(question){
+function getAllEntries() {
 
-    const text = question.toLowerCase();
+    return new Promise((resolve, reject) => {
+
+        db.all("SELECT * FROM knowledge", [], (err, rows) => {
+
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            const entries = rows.map((row) =>
+                new KnowledgeEntry(
+                    row.id,
+                    row.category,
+                    row.title,
+                    row.keywords.split(","),
+                    row.content
+                )
+            );
+
+            resolve(entries);
+
+        });
+
+    });
+
+}
 
 
-    for(let item of knowledge){
+async function searchAnswer(question) {
 
-        for(let keyword of item.keywords){
+    const entries = await getAllEntries();
+    console.log("Entries loaded:", entries.length);
+    console.log("Question:", question);
 
-            if(text.includes(keyword)){
+    for (let entry of entries) {
 
-                return item.answer;
+        const result = entry.findMatch(question);
 
+        if (result) {
+            console.log("Match found:", entry.title);
+            if (result.exact) {
+                return entry.content;
+            } else {
+                return "Did you mean '" + result.keyword + "'? " + entry.content;
             }
 
         }
 
     }
 
+    console.log("No keyword match, falling back to Gemini");
 
-    return "I don't have information about that yet.";
+    try {
+        const aiReply = await askGemini(question, entries);
+        return aiReply;
+    } catch (error) {
+        console.error("Gemini error:", error);
+        return "I don't have information about that yet.";
+    }
 
 }
 
 
-module.exports = searchAnswer;
+function createEntry(category, title, keywords, content) {
+
+    return new Promise((resolve, reject) => {
+
+        const keywordStr = Array.isArray(keywords) ? keywords.join(",") : keywords;
+
+        db.run(
+            "INSERT INTO knowledge (category, title, keywords, content) VALUES (?, ?, ?, ?)",
+            [category, title, keywordStr, content],
+            function (err) {
+
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                resolve({
+                    id: this.lastID,
+                    category,
+                    title,
+                    keywords: keywordStr.split(","),
+                    content
+                });
+
+            }
+        );
+
+    });
+
+}
+
+
+function updateEntry(id, category, title, keywords, content) {
+
+    return new Promise((resolve, reject) => {
+
+        const keywordStr = Array.isArray(keywords) ? keywords.join(",") : keywords;
+
+        db.run(
+            "UPDATE knowledge SET category = ?, title = ?, keywords = ?, content = ? WHERE id = ?",
+            [category, title, keywordStr, content, id],
+            function (err) {
+
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                resolve({
+                    id,
+                    category,
+                    title,
+                    keywords: keywordStr.split(","),
+                    content
+                });
+
+            }
+        );
+
+    });
+
+}
+
+
+function deleteEntry(id) {
+
+    return new Promise((resolve, reject) => {
+
+        db.run("DELETE FROM knowledge WHERE id = ?", [id], function (err) {
+
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            resolve({ id, deleted: this.changes > 0 });
+
+        });
+
+    });
+
+}
+
+
+module.exports = { getAllEntries, searchAnswer, createEntry, updateEntry, deleteEntry };
