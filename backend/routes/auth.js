@@ -22,7 +22,7 @@ router.post("/signup", async (req, res) => {
 
     const existingUser = await User.findByUsername(username);
     if (existingUser) {
-      return res.status(400).json({ message: "Username already exists" });
+      return res.status(400).json({ message: "Student number already exists" });
     }
 
     let user;
@@ -35,7 +35,7 @@ router.post("/signup", async (req, res) => {
     const savedUser = await user.save();
 
     const token = jwt.sign(
-      { id: savedUser.id, username: savedUser.username, role: savedUser.role },
+      { id: savedUser.id, username: savedUser.username, full_name: savedUser.full_name, role: savedUser.role },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -52,21 +52,21 @@ router.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ message: "Username and password are required" });
+      return res.status(400).json({ message: "Student number and password are required" });
     }
 
     const user = await User.findByUsername(username);
     if (!user) {
-      return res.status(401).json({ message: "Invalid username or password" });
+      return res.status(401).json({ message: "Invalid student number or password" });
     }
 
     const passwordMatch = User.verifyPassword(password, user.password);
     if (!passwordMatch) {
-      return res.status(401).json({ message: "Invalid username or password" });
+      return res.status(401).json({ message: "Invalid student number or password" });
     }
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
+      { id: user.id, username: user.username, full_name: user.full_name, role: user.role },
       JWT_SECRET,
       { expiresIn: "7d" }
     );

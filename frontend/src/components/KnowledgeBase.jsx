@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../config";
 
 function KnowledgeBase() {
 
@@ -10,7 +11,7 @@ function KnowledgeBase() {
 
   useEffect(() => {
 
-    fetch("http://localhost:5000/api/knowledge")
+    fetch(`${API_BASE_URL}/api/knowledge`)
       .then((response) => response.json())
       .then((data) => {
         setEntries(data);

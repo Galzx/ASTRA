@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { API_BASE_URL } from "../config";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY_ABBR = { Monday: "Mon", Tuesday: "Tue", Wednesday: "Wed", Thursday: "Thu", Friday: "Fri", Saturday: "Sat", Sunday: "Sun" };
@@ -216,7 +217,7 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
 
   async function handleSaveEntry(entryId, fields, color) {
     try {
-      await fetch(`http://localhost:5000/api/schedule/${entryId}`, {
+      await fetch(`${API_BASE_URL}/api/schedule/${entryId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(fields)
@@ -231,7 +232,7 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
 
   async function handleDeleteEntry(entryId) {
     try {
-      await fetch(`http://localhost:5000/api/schedule/${entryId}`, {
+      await fetch(`${API_BASE_URL}/api/schedule/${entryId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -248,7 +249,7 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
   async function handleClearAll() {
     setClearing(true);
     try {
-      await fetch("http://localhost:5000/api/schedule/me", {
+      await fetch(`${API_BASE_URL}/api/schedule/me`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });

@@ -3,7 +3,7 @@ const quota = require("./quota");
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const MODEL = "gemini-2.0-flash-lite";
+const MODEL = "gemini-3.1-flash-lite";
 
 const NO_MARKDOWN_RULE =
   "Do not use markdown formatting of any kind — no asterisks, no bold, no bullet points, no headers. " +

@@ -63,6 +63,8 @@ function App() {
 
   return (
     <div className="app">
+      <div className="app-bg" />
+
       <Header
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}

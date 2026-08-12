@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../config";
 
 function AdminKnowledgeBase() {
 
@@ -9,7 +10,7 @@ function AdminKnowledgeBase() {
 
   const loadEntries = () => {
 
-    fetch("http://localhost:5000/api/knowledge")
+    fetch(`${API_BASE_URL}/api/knowledge`)
       .then((response) => response.json())
       .then((data) => {
         setEntries(data);
@@ -36,8 +37,8 @@ function AdminKnowledgeBase() {
     e.preventDefault();
 
     const url = editingId
-      ? `http://localhost:5000/api/knowledge/${editingId}`
-      : "http://localhost:5000/api/knowledge";
+      ? `${API_BASE_URL}/api/knowledge/${editingId}`
+      : `${API_BASE_URL}/api/knowledge`;
 
     const method = editingId ? "PUT" : "POST";
 
@@ -72,7 +73,7 @@ function AdminKnowledgeBase() {
 
   const handleDelete = (id) => {
 
-    fetch(`http://localhost:5000/api/knowledge/${id}`, { method: "DELETE" })
+    fetch(`${API_BASE_URL}/api/knowledge/${id}`, { method: "DELETE" })
       .then((response) => response.json())
       .then(() => {
         loadEntries();

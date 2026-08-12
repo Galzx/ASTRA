@@ -150,6 +150,117 @@
   opacity: 0.75;
 }
 
+/* ---------- live field feedback (student number, password) ---------- */
+
+.field-feedback {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 2px 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.field-feedback svg {
+  flex-shrink: 0;
+}
+
+.field-feedback.valid {
+  color: #16a34a;
+}
+
+.dark-mode .field-feedback.valid {
+  color: #4ade80;
+}
+
+.field-feedback.invalid {
+  color: #dc2626;
+}
+
+.dark-mode .field-feedback.invalid {
+  color: #f87171;
+}
+
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 2px 0;
+}
+
+.strength-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(148, 163, 184, 0.3);
+  overflow: hidden;
+}
+
+.dark-mode .strength-bar {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.strength-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.strength-bar-fill.strength-weak {
+  background: #dc2626;
+}
+
+.strength-bar-fill.strength-fair {
+  background: #d97706;
+}
+
+.strength-bar-fill.strength-good {
+  background: #ca8a04;
+}
+
+.strength-bar-fill.strength-strong {
+  background: #16a34a;
+}
+
+.strength-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.strength-label.strength-weak {
+  color: #dc2626;
+}
+
+.strength-label.strength-fair {
+  color: #d97706;
+}
+
+.strength-label.strength-good {
+  color: #ca8a04;
+}
+
+.strength-label.strength-strong {
+  color: #16a34a;
+}
+
+.dark-mode .strength-label.strength-weak {
+  color: #f87171;
+}
+
+.dark-mode .strength-label.strength-fair {
+  color: #fbbf24;
+}
+
+.dark-mode .strength-label.strength-good {
+  color: #fde047;
+}
+
+.dark-mode .strength-label.strength-strong {
+  color: #4ade80;
+}
+
 .input-icon-wrap {
   position: relative;
   display: flex;

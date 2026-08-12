@@ -28,25 +28,51 @@ html.dark-mode {
   --header-text: #f5f5f5;
 }
 
+/* ─── App Background Wash (matches login page) ──────────── */
+
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(ellipse 120% 100% at 15% 10%, #e5e9ff 0%, #cdd7f7 45%, #bccdf3 100%);
+  transition: background-color 0.4s ease;
+}
+
+html.dark-mode .app-bg {
+  background: radial-gradient(ellipse 120% 100% at 15% 10%, #131a33 0%, #0a0e1f 45%, #020308 100%);
+}
+
 /* ─── App Shell ─────────────────────────────────────────── */
 
 .app {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: var(--bg);
+  background: transparent;
   color: var(--text-h);
+  overflow: hidden;
 }
 
 /* ─── Topbar ────────────────────────────────────────────── */
 
 .topbar {
-  background: var(--header-bg);
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
   padding: 14px 24px;
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+html.dark-mode .topbar {
+  background: rgba(13, 16, 28, 0.45);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .topbar h1 {
@@ -155,7 +181,6 @@ html.dark-mode {
   background: #1e1b4b;
 }
 
-/* Sun and moon sit on top of each other inside the thumb */
 .theme-switch-sun,
 .theme-switch-moon {
   position: absolute;
@@ -165,7 +190,6 @@ html.dark-mode {
   transition: opacity 0.3s ease, transform 0.35s ease;
 }
 
-/* Light mode — sun visible, moon hidden */
 .theme-switch-sun {
   opacity: 1;
   transform: rotate(0deg) scale(1);
@@ -178,7 +202,6 @@ html.dark-mode {
   color: #a5b4fc;
 }
 
-/* Dark mode — moon visible, sun hidden */
 .theme-switch.dark .theme-switch-sun {
   opacity: 0;
   transform: rotate(30deg) scale(0.7);
@@ -210,6 +233,8 @@ html.dark-mode {
 /* ─── Layout ────────────────────────────────────────────── */
 
 .layout {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -221,11 +246,11 @@ main {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--bg);
+  background: transparent;
 }
 
 .view-fade {
-  animation: fadeIn 0.25s ease;
+  animation: viewFadeIn 0.5s cubic-bezier(0.65, 0, 0.35, 1);
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -237,12 +262,19 @@ main {
 .sidebar {
   width: 220px;
   flex-shrink: 0;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid rgba(255, 255, 255, 0.4);
   padding: 24px 16px;
   overflow: hidden;
   white-space: nowrap;
-  transition: width 0.25s ease, padding 0.25s ease;
-  background: var(--bg);
+  transition: width 0.25s ease, padding 0.25s ease, background-color 0.4s ease, border-color 0.4s ease;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+html.dark-mode .sidebar {
+  background: rgba(13, 16, 28, 0.35);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .sidebar.collapsed {
@@ -352,13 +384,21 @@ main {
 .chat-history-sidebar {
   width: 260px;
   min-width: 260px;
-  background: var(--code-bg);
-  border-right: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border-right: 1px solid rgba(255, 255, 255, 0.4);
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  transition: width 0.25s ease, min-width 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
+  border-radius: 12px 0 0 12px;
+  transition: width 0.25s ease, min-width 0.25s ease, padding 0.25s ease, opacity 0.2s ease, background-color 0.4s ease, border-color 0.4s ease;
+}
+
+html.dark-mode .chat-history-sidebar {
+  background: rgba(13, 16, 28, 0.35);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .chat-history-sidebar.closed {
@@ -428,7 +468,7 @@ main {
   background: var(--accent-bg);
   border-color: var(--accent-border);
   border-left: 2.5px solid var(--accent);
-  padding-left: 9.5px; /* offset the thicker left border so text doesn't shift */
+  padding-left: 9.5px;
 }
 
 .chat-history-item-title {
@@ -447,19 +487,153 @@ main {
   margin-top: 4px;
 }
 
+/* ─── Chat History Actions (delete / clear all) ─────────── */
+
+.history-clear-all-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  color: var(--text);
+  opacity: 0.75;
+  padding: 4px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.history-clear-all-btn:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
+.history-clear-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.history-confirm-yes-text,
+.history-confirm-no-text {
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: none;
+}
+
+.history-confirm-yes-text {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.history-confirm-yes-text:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.history-confirm-no-text {
+  color: var(--text);
+}
+
+.history-confirm-no-text:hover {
+  background: var(--accent-bg);
+}
+
+.chat-history-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-history-item-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-history-item-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.chat-history-item:hover .chat-history-item-delete {
+  opacity: 0.6;
+}
+
+.chat-history-item-delete:hover {
+  opacity: 1 !important;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.history-item-confirm {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.history-confirm-yes,
+.history-confirm-no {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.history-confirm-yes {
+  color: #ef4444;
+}
+
+.history-confirm-yes:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.history-confirm-no {
+  color: var(--text);
+}
+
+.history-confirm-no:hover {
+  background: var(--accent-bg);
+}
+
 .chat-window {
   flex: 1;
   min-height: 200px;
   max-width: 700px;
   overflow-y: auto;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 8px;
   padding: 15px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--code-bg);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
   margin-top: 14px;
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+html.dark-mode .chat-window {
+  background: rgba(13, 16, 28, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 /* ─── Messages ──────────────────────────────────────────── */
@@ -557,8 +731,13 @@ main {
   border: 1px solid var(--border);
   border-radius: 8px;
   font: inherit;
-  background: var(--bg);
+  background: rgba(255, 255, 255, 0.6);
   color: var(--text-h);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+html.dark-mode .chat-input input {
+  background: rgba(13, 16, 28, 0.4);
 }
 
 .chat-input input:focus {
@@ -652,11 +831,19 @@ main {
 .schedule-panel {
   width: 660px;
   flex-shrink: 0;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 8px;
   padding: 12px;
   overflow-y: auto;
-  background: var(--code-bg);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+html.dark-mode .schedule-panel {
+  background: rgba(13, 16, 28, 0.35);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .schedule-panel-header {
@@ -699,7 +886,13 @@ main {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--code-bg);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+html.dark-mode .schedule-matrix-corner {
+  background: rgba(13, 16, 28, 0.5);
 }
 
 .schedule-matrix-daylabel {
@@ -784,9 +977,19 @@ main {
   margin-top: 0;
   width: 100%;
   padding: 15px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 25px 70px -25px rgba(15, 23, 42, 0.2);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+html.dark-mode .knowledge-base {
+  background: rgba(13, 16, 28, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 70px -25px rgba(0, 0, 0, 0.7), 0 0 60px -20px rgba(99, 102, 241, 0.25);
 }
 
 .kb-controls {
@@ -904,9 +1107,10 @@ html.dark-mode .offline-banner {
   30% { transform: translateY(-4px); opacity: 1; }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes viewFadeIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  40% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes spin {

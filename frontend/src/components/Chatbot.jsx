@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import ChatMessage from "../models/ChatMessage";
 import ScheduleGrid from "./ScheduleGrid";
+import { API_BASE_URL } from "../config";
 
 const EXAMPLE_PROMPTS = [
   "what's the passing grade?",
@@ -22,7 +23,7 @@ function getRandomPrompt() {
   return EXAMPLE_PROMPTS[Math.floor(Math.random() * EXAMPLE_PROMPTS.length)];
 }
 
-function getGreeting(username) {
+function getGreeting(fullName) {
   const hour = new Date().getHours();
   let pool;
   if (hour >= 5 && hour < 12) pool = GREETINGS.morning;
@@ -30,8 +31,16 @@ function getGreeting(username) {
   else if (hour >= 18 && hour < 22) pool = GREETINGS.evening;
   else pool = GREETINGS.night;
   const phrase = pool[Math.floor(Math.random() * pool.length)];
-  return username ? `${phrase}, ${username}` : phrase;
+  return fullName ? `${phrase}, ${fullName}` : phrase;
 }
+
+// ── Offline / error copy ────────────────────────────────────
+
+const OFFLINE_BANNER_MESSAGE =
+  "Having trouble reaching ASTRA's server. If this just started, it may still be waking up — try again in a few seconds.";
+
+const OFFLINE_CHAT_MESSAGE =
+  "I couldn't reach the server just now. It may still be starting up — please try sending that again in a moment.";
 
 // ── Session persistence helpers ─────────────────────────────
 
@@ -145,6 +154,26 @@ function GaugeIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 // ── Quota Meter (header) ─────────────────────────────────────
 
 function QuotaMeter({ percent }) {
@@ -218,7 +247,7 @@ function ThinkingIndicator() {
 
 // ── Chatbot ────────────────────────────────────────────────
 
-function Chatbot({ username, token }) {
+function Chatbot({ username, fullName, token }) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState(() => loadInitialMessages());
   const [chatSessions, setChatSessions] = useState(() => loadSavedSessions());
@@ -230,12 +259,14 @@ function Chatbot({ username, token }) {
   const [quotaSeconds, setQuotaSeconds] = useState(null);
   const [quotaPercent, setQuotaPercent] = useState(null);
   const [examplePrompt, setExamplePrompt] = useState(() => getRandomPrompt());
-  const [greeting] = useState(() => getGreeting(username));
+  const [greeting] = useState(() => getGreeting(fullName || username));
   const [attachedFile, setAttachedFile] = useState(null);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false);
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
   const [schedule, setSchedule] = useState([]);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -297,7 +328,7 @@ function Chatbot({ username, token }) {
 
   const fetchQuota = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/quota");
+      const response = await fetch(`${API_BASE_URL}/api/quota`);
       const data = await response.json();
       setQuotaPercent(typeof data.percent === "number" ? data.percent : null);
     } catch (error) {
@@ -311,7 +342,7 @@ function Chatbot({ username, token }) {
 
   const fetchSchedule = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/schedule/me", {
+      const response = await fetch(`${API_BASE_URL}/api/schedule/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -367,13 +398,13 @@ function Chatbot({ username, token }) {
         const formData = new FormData();
         formData.append("file", fileToSend);
         formData.append("message", message || "What can you tell me about this file?");
-        response = await fetch("http://localhost:5000/api/chat/file", {
+        response = await fetch(`${API_BASE_URL}/api/chat/file`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData
         });
       } else {
-        response = await fetch("http://localhost:5000/api/chat", {
+        response = await fetch(`${API_BASE_URL}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ message: studentText })
@@ -395,7 +426,7 @@ function Chatbot({ username, token }) {
       setIsOffline(true);
       setMessages((prev) => [
         ...prev,
-        new ChatMessage("astra", "Unable to reach the server. Please ensure the backend server is running on port 5000.")
+        new ChatMessage("astra", OFFLINE_CHAT_MESSAGE)
       ]);
     } finally {
       setIsTyping(false);
@@ -416,7 +447,7 @@ function Chatbot({ username, token }) {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("http://localhost:5000/api/schedule/upload", {
+      const response = await fetch(`${API_BASE_URL}/api/schedule/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData
@@ -444,7 +475,7 @@ function Chatbot({ username, token }) {
       setIsOffline(true);
       setMessages((prev) => [
         ...prev,
-        new ChatMessage("astra", "Unable to reach the server. Please ensure the backend server is running on port 5000.")
+        new ChatMessage("astra", OFFLINE_CHAT_MESSAGE)
       ]);
     } finally {
       setIsTyping(false);
@@ -470,6 +501,22 @@ function Chatbot({ username, token }) {
     inputRef.current?.focus();
   }
 
+  function deleteSession(id) {
+    setChatSessions((prev) => prev.filter((s) => s.id !== id));
+    if (id === currentSessionId) {
+      setMessages([]);
+      setCurrentSessionId(null);
+    }
+    setConfirmDeleteId(null);
+  }
+
+  function clearAllHistory() {
+    setChatSessions([]);
+    setMessages([]);
+    setCurrentSessionId(null);
+    setConfirmClearAll(false);
+  }
+
   const sortedSessions = [...chatSessions].sort((a, b) => b.updatedAt - a.updatedAt);
 
   return (
@@ -479,6 +526,24 @@ function Chatbot({ username, token }) {
       <div className={`chat-history-sidebar${isHistorySidebarOpen ? "" : " closed"}`}>
         <div className="chat-history-header">
           <h3>Recent Chats</h3>
+
+          {chatSessions.length > 0 && (
+            confirmClearAll ? (
+              <div className="history-clear-confirm">
+                <span>Clear all?</span>
+                <button className="history-confirm-yes-text" onClick={clearAllHistory}>
+                  Yes
+                </button>
+                <button className="history-confirm-no-text" onClick={() => setConfirmClearAll(false)}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button className="history-clear-all-btn" onClick={() => setConfirmClearAll(true)}>
+                Clear all
+              </button>
+            )
+          )}
         </div>
 
         <div className="chat-history-list">
@@ -491,8 +556,42 @@ function Chatbot({ username, token }) {
                 className={`chat-history-item${session.id === currentSessionId ? " active" : ""}`}
                 onClick={() => loadSession(session)}
               >
-                <div className="chat-history-item-title">{session.title}</div>
-                <div className="chat-history-item-meta">{formatSessionMeta(session.updatedAt)}</div>
+                <div className="chat-history-item-row">
+                  <div className="chat-history-item-text">
+                    <div className="chat-history-item-title">{session.title}</div>
+                    <div className="chat-history-item-meta">{formatSessionMeta(session.updatedAt)}</div>
+                  </div>
+
+                  {confirmDeleteId === session.id ? (
+                    <div className="history-item-confirm" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        className="history-confirm-yes"
+                        onClick={() => deleteSession(session.id)}
+                        title="Confirm delete"
+                      >
+                        <CheckIcon />
+                      </button>
+                      <button
+                        className="history-confirm-no"
+                        onClick={() => setConfirmDeleteId(null)}
+                        title="Cancel"
+                      >
+                        <CloseIcon />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="chat-history-item-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteId(session.id);
+                      }}
+                      title="Delete chat"
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -545,7 +644,7 @@ function Chatbot({ username, token }) {
 
         {isOffline && (
           <div className="offline-banner">
-            <WarningIcon /> Backend server disconnected. Check if <code>node server.js</code> is running on port 5000.
+            <WarningIcon /> {OFFLINE_BANNER_MESSAGE}
           </div>
         )}
 

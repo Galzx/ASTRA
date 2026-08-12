@@ -1,6 +1,46 @@
 import { useState, useRef, useLayoutEffect, useEffect } from "react";
 import logo from "../assets/astra-logo.svg";
+import { API_BASE_URL } from "../config";
 import "./Login.css";
+
+// Student numbers look like 1-250614f: a leading "1-", six digits, then a
+// single letter. Case-insensitive so 1-250614F and 1-250614f both pass.
+const STUDENT_NUMBER_PATTERN = /^1-\d{6}[a-zA-Z]$/;
+
+function getStudentNumberStatus(value) {
+  if (!value) return { touched: false, valid: false, message: "" };
+  if (STUDENT_NUMBER_PATTERN.test(value)) {
+    return { touched: true, valid: true, message: "Looks good" };
+  }
+  return {
+    touched: true,
+    valid: false,
+    message: "Format: 1-XXXXXXf (1-, six digits, one letter)",
+  };
+}
+
+// Password strength: checks length, case mix, digits, symbols.
+// Score 0-4 drives the label/color; signup blocks below "Fair".
+function getPasswordStrength(value) {
+  if (!value) return { score: 0, label: "", percent: 0 };
+
+  const hasLower = /[a-z]/.test(value);
+  const hasUpper = /[A-Z]/.test(value);
+  const hasNumber = /\d/.test(value);
+  const hasSymbol = /[^A-Za-z0-9]/.test(value);
+  const longEnough = value.length >= 8;
+
+  let score = 0;
+  if (longEnough) score++;
+  if (hasLower && hasUpper) score++;
+  if (hasNumber) score++;
+  if (hasSymbol) score++;
+
+  const labels = ["Too weak", "Weak", "Fair", "Good", "Strong"];
+  const label = longEnough ? labels[score] : "Too short";
+
+  return { score: longEnough ? score : 0, label, percent: (score / 4) * 100 };
+}
 
 // Fixed full-viewport canvas: a slow drifting particle network behind the
 // login card. Colors switch light/dark by watching for the app's existing
@@ -114,6 +154,19 @@ function StarField() {
   return <canvas ref={canvasRef} className="login-starfield" aria-hidden="true" />;
 }
 
+// Small check/x icon used in the live student-number feedback line.
+function StatusIcon({ valid }) {
+  return valid ? (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  ) : (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
 function Login({ onLogin }) {
   const [isSignup, setIsSignup] = useState(false);
   const [username, setUsername] = useState("");
@@ -128,6 +181,9 @@ function Login({ onLogin }) {
 
   const loginSlotRef = useRef(null);
   const signupSlotRef = useRef(null);
+
+  const studentNumberStatus = getStudentNumberStatus(username);
+  const passwordStrength = getPasswordStrength(password);
 
   useLayoutEffect(() => {
     const loginEl = loginSlotRef.current;
@@ -150,7 +206,7 @@ function Login({ onLogin }) {
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [role, error, isSignup]);
+  }, [role, error, isSignup, username, password]);
 
   const switchTo = (signup) => {
     setIsSignup(signup);
@@ -161,6 +217,18 @@ function Login({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (isSignup) {
+      if (!studentNumberStatus.valid) {
+        setError("Student number must look like 1-250614f");
+        return;
+      }
+      if (passwordStrength.score < 2) {
+        setError("Password is too weak. Add a number, symbol, or uppercase letter.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -169,7 +237,7 @@ function Login({ onLogin }) {
         ? { username, password, full_name: fullName, role, admin_key: role === "admin" ? adminKey : undefined }
         : { username, password };
 
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -203,6 +271,14 @@ function Login({ onLogin }) {
         <circle cx="12" cy="12" r="3" />
       </svg>
     );
+
+  const strengthClass = passwordStrength.score <= 1
+    ? "weak"
+    : passwordStrength.score <= 2
+    ? "fair"
+    : passwordStrength.score <= 3
+    ? "good"
+    : "strong";
 
   return (
     <div className="login-container">
@@ -239,13 +315,19 @@ function Login({ onLogin }) {
                   <input
                     id="username-login"
                     type="text"
-                    placeholder="Student Number"
+                    placeholder="1-250614f"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     tabIndex={isSignup ? -1 : 0}
                     required
                   />
                 </div>
+                {!isSignup && studentNumberStatus.touched && (
+                  <p className={`field-feedback ${studentNumberStatus.valid ? "valid" : "invalid"}`}>
+                    <StatusIcon valid={studentNumberStatus.valid} />
+                    {studentNumberStatus.message}
+                  </p>
+                )}
               </div>
 
               <div className="form-group">
@@ -314,13 +396,22 @@ function Login({ onLogin }) {
                   <input
                     id="username-signup"
                     type="text"
-                    placeholder="Student Number"
+                    placeholder="1-250614f"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     tabIndex={!isSignup ? -1 : 0}
                     required
                   />
                 </div>
+                {isSignup && studentNumberStatus.touched && (
+                  <p className={`field-feedback ${studentNumberStatus.valid ? "valid" : "invalid"}`}>
+                    <StatusIcon valid={studentNumberStatus.valid} />
+                    {studentNumberStatus.message}
+                  </p>
+                )}
+                {isSignup && !studentNumberStatus.touched && (
+                  <p className="field-hint">Format: 1-XXXXXXf, e.g. 1-250614f</p>
+                )}
               </div>
 
               <div className="form-group">
@@ -368,7 +459,22 @@ function Login({ onLogin }) {
                     <EyeIcon open={showPassword} />
                   </button>
                 </div>
-                <p className="field-hint">Use 8+ characters with a number or symbol.</p>
+                {isSignup && password && (
+                  <div className="password-strength">
+                    <div className="strength-bar">
+                      <div
+                        className={`strength-bar-fill strength-${strengthClass}`}
+                        style={{ width: `${Math.max(passwordStrength.percent, 8)}%` }}
+                      />
+                    </div>
+                    <span className={`strength-label strength-${strengthClass}`}>
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+                )}
+                {isSignup && !password && (
+                  <p className="field-hint">Use 8+ characters with a number or symbol.</p>
+                )}
               </div>
 
               <div className="form-group">
