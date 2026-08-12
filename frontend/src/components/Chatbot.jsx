@@ -19,6 +19,8 @@ const GREETINGS = {
   night: ["Working late", "Good evening"]
 };
 
+const MOBILE_BREAKPOINT = 768;
+
 function getRandomPrompt() {
   return EXAMPLE_PROMPTS[Math.floor(Math.random() * EXAMPLE_PROMPTS.length)];
 }
@@ -268,6 +270,22 @@ function Chatbot({ username, fullName, token }) {
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+  // Mobile detection — used to show a tap-to-close backdrop
+  // behind the history sidebar / schedule panel when they're
+  // rendered as full overlays instead of inline flex siblings.
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth <= MOBILE_BREAKPOINT;
+  });
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -499,6 +517,7 @@ function Chatbot({ username, fullName, token }) {
     setIsOffline(false);
     setQuotaSeconds(null);
     inputRef.current?.focus();
+    if (isMobile) setIsHistorySidebarOpen(false);
   }
 
   function deleteSession(id) {
@@ -521,6 +540,16 @@ function Chatbot({ username, fullName, token }) {
 
   return (
     <div className="chatbot-layout" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
+
+      {/* Backdrop for the chat history sidebar on mobile — tap
+          outside the panel to close it, same pattern as the main
+          app sidebar in App.jsx. */}
+      {isMobile && isHistorySidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setIsHistorySidebarOpen(false)}
+        />
+      )}
 
       {/* ── Left Sidebar: Recent Chats ────────────────────────── */}
       <div className={`chat-history-sidebar${isHistorySidebarOpen ? "" : " closed"}`}>
@@ -749,6 +778,14 @@ function Chatbot({ username, fullName, token }) {
 
         <p className="chat-disclaimer">ASTRA can make mistakes. Verify important academic information.</p>
       </div>
+
+      {/* Backdrop for the schedule panel on mobile */}
+      {isMobile && isScheduleOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setIsScheduleOpen(false)}
+        />
+      )}
 
       {isScheduleOpen && (
         <ScheduleGrid

@@ -1474,9 +1474,19 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
    MOBILE RESPONSIVE OVERRIDES
    The fixed-width panels above (sidebar, chat history sidebar,
    schedule panel) don't shrink on narrow screens and were
-   causing overlap/cutoff. On mobile they become slide-in
-   overlays instead of squeezing the main content.
+   causing overlap/cutoff. On mobile they become solid slide-in
+   overlays instead of squeezing/blending with main content.
    ══════════════════════════════════════════════════════════ */
+
+/* Shared dark backdrop behind whichever overlay panel is open
+   (main sidebar, chat history sidebar, or schedule panel) —
+   tap it to close. */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 39; /* just below the overlay panels' z-index (40+) */
+}
 
 @media (max-width: 768px) {
 
@@ -1493,7 +1503,9 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
   }
 
   /* Primary nav sidebar becomes a fixed overlay drawer instead
-     of a flex sibling that steals width from main content */
+     of a flex sibling that steals width from main content.
+     Solid background (glass/blur removed) so it doesn't
+     visually merge with the chat content behind it. */
   .sidebar {
     position: fixed;
     top: 0;
@@ -1501,7 +1513,10 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
     bottom: 0;
     z-index: 40;
     height: 100vh;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.35);
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .sidebar.collapsed {
@@ -1512,7 +1527,7 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
   }
 
   /* Chatbot layout: history sidebar and schedule panel also
-     become overlays, chatbox always takes full width */
+     become solid overlays, chatbox always takes full width */
   .chatbot-layout {
     position: relative;
     gap: 0;
@@ -1533,7 +1548,10 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
     min-width: 240px;
     z-index: 45;
     border-radius: 0;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.35);
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .chat-history-sidebar.closed {
@@ -1552,8 +1570,11 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
     height: 100vh;
     z-index: 45;
     border-radius: 0;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.25);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.35);
     overflow: auto;
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   /* These had a max-width ceiling but no floor; on very narrow
@@ -1590,13 +1611,4 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
     width: 100%;
     box-sizing: border-box;
   }
-}
-
-/* ─── Sidebar Backdrop (mobile) ──────────────────────────── */
-
-.sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 39; /* just below .sidebar's z-index: 40 */
 }

@@ -25,9 +25,6 @@ function App() {
   });
   const [activeView, setActiveView] = useState("Chatbot");
 
-  // Sidebar starts open on desktop, closed on mobile/narrow screens
-  // (a translucent overlay sidebar left open on a small screen
-  // visually merges with the content behind it).
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     return window.innerWidth > MOBILE_BREAKPOINT;
@@ -50,9 +47,6 @@ function App() {
     }
   }, [isDarkMode]);
 
-  // Track viewport width so we know when we're in "mobile" mode
-  // (for the tap-to-close backdrop) and so resizing the window
-  // (or rotating a device) re-evaluates sidebar default state.
   useEffect(() => {
     function handleResize() {
       const nowMobile = window.innerWidth <= MOBILE_BREAKPOINT;
@@ -99,10 +93,6 @@ function App() {
       />
 
       <div className="layout">
-        {/* Dark backdrop behind the sidebar on mobile, so an open
-            overlay sidebar reads as a distinct layer instead of
-            blending into the page behind it. Tapping it closes
-            the sidebar. */}
         {isMobile && isSidebarOpen && (
           <div
             className="sidebar-backdrop"
