@@ -220,7 +220,7 @@ function Login({ onLogin }) {
 
     if (isSignup) {
       if (!studentNumberStatus.valid) {
-        setError("Student number must look like 1-250614f");
+        setError("Student number must look like 1-xxxxxxf");
         return;
       }
       if (passwordStrength.score < 2) {
@@ -315,7 +315,7 @@ function Login({ onLogin }) {
                   <input
                     id="username-login"
                     type="text"
-                    placeholder="1-250614f"
+                    placeholder="1-xxxxxxf"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     tabIndex={isSignup ? -1 : 0}
@@ -396,7 +396,7 @@ function Login({ onLogin }) {
                   <input
                     id="username-signup"
                     type="text"
-                    placeholder="1-250614f"
+                    placeholder="1-xxxxxxf"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     tabIndex={!isSignup ? -1 : 0}
@@ -410,7 +410,7 @@ function Login({ onLogin }) {
                   </p>
                 )}
                 {isSignup && !studentNumberStatus.touched && (
-                  <p className="field-hint">Format: 1-XXXXXXf, e.g. 1-250614f</p>
+                  <p className="field-hint">Format: 1-XXXXXXf, e.g. 1-xxxxxxf</p>
                 )}
               </div>
 
