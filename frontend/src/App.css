@@ -1469,3 +1469,125 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
   margin: 8px 0 0;
   max-width: 700px;
 }
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE OVERRIDES
+   The fixed-width panels above (sidebar, chat history sidebar,
+   schedule panel) don't shrink on narrow screens and were
+   causing overlap/cutoff. On mobile they become slide-in
+   overlays instead of squeezing the main content.
+   ══════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  .topbar {
+    padding: 10px 14px;
+  }
+
+  .header-actions {
+    gap: 8px;
+  }
+
+  main {
+    padding: 16px;
+  }
+
+  /* Primary nav sidebar becomes a fixed overlay drawer instead
+     of a flex sibling that steals width from main content */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 40;
+    height: 100vh;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .sidebar.collapsed {
+    width: 0;
+    padding: 24px 0;
+    overflow: hidden;
+    box-shadow: none;
+  }
+
+  /* Chatbot layout: history sidebar and schedule panel also
+     become overlays, chatbox always takes full width */
+  .chatbot-layout {
+    position: relative;
+    gap: 0;
+  }
+
+  .chatbox {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .chat-history-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    width: 240px;
+    min-width: 240px;
+    z-index: 45;
+    border-radius: 0;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .chat-history-sidebar.closed {
+    width: 0;
+    min-width: 0;
+    box-shadow: none;
+  }
+
+  .schedule-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 85vw;
+    max-width: 340px;
+    height: 100vh;
+    z-index: 45;
+    border-radius: 0;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.25);
+    overflow: auto;
+  }
+
+  /* These had a max-width ceiling but no floor; on very narrow
+     viewports let them use the full available width */
+  .chat-header,
+  .chat-window,
+  .chat-input,
+  .chat-disclaimer {
+    max-width: 100%;
+  }
+
+  .chat-header {
+    flex-wrap: wrap;
+  }
+
+  .chat-header-actions {
+    flex-wrap: wrap;
+  }
+
+  /* Schedule grid: keep real column widths and let the panel
+     scroll horizontally instead of squeezing text unreadably */
+  .schedule-matrix {
+    grid-template-columns: 44px repeat(7, minmax(72px, 1fr));
+    min-width: 560px;
+  }
+
+  .kb-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .kb-controls input,
+  .kb-controls select {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
