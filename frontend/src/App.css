@@ -1591,3 +1591,12 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
     box-sizing: border-box;
   }
 }
+
+/* ─── Sidebar Backdrop (mobile) ──────────────────────────── */
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 39; /* just below .sidebar's z-index: 40 */
+}
