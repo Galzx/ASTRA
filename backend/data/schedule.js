@@ -1,3 +1,4 @@
+// backend/data/schedule.js
 const db = require("../database/database");
 
 function saveSchedule(userId, entries) {
@@ -30,6 +31,19 @@ function getScheduleByUser(userId) {
       if (err) { reject(err); return; }
       resolve(rows);
     });
+  });
+}
+
+function addScheduleEntry(userId, subject, day, time, room) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      "INSERT INTO schedules (user_id, subject, day, time, room) VALUES (?, ?, ?, ?, ?)",
+      [userId, subject, day, time, room || ""],
+      function (err) {
+        if (err) { reject(err); return; }
+        resolve({ id: this.lastID, user_id: userId, subject, day, time, room: room || "" });
+      }
+    );
   });
 }
 
@@ -93,6 +107,7 @@ function deleteScheduleEntry(userId, id) {
 module.exports = {
   saveSchedule,
   getScheduleByUser,
+  addScheduleEntry,
   moveClassesByIds,
   clearSchedule,
   updateScheduleEntry,

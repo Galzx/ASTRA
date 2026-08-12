@@ -424,7 +424,7 @@ function Login({ onLogin }) {
                   <input
                     id="fullName"
                     type="text"
-                    placeholder="Ada Lovelace"
+                    placeholder="Juan Dela Cruz"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     tabIndex={!isSignup ? -1 : 0}

@@ -1,3 +1,4 @@
+// backend/utils/gemini.js
 const { GoogleGenAI } = require("@google/genai");
 const quota = require("./quota");
 
@@ -180,14 +181,22 @@ async function parseScheduleEditRequest(message, scheduleEntries) {
     "You are parsing a student's message to decide if they are asking to MOVE one or more classes " +
     "to a different day (and optionally a different time) on their schedule. Typos and casual phrasing " +
     "are common — interpret intent, don't require exact wording. " +
+    "IMPORTANT — do not confuse a QUESTION with a MOVE COMMAND. Only classify the message as a move " +
+    "request if the student is explicitly instructing a change, using language like \"move\", " +
+    "\"reschedule\", \"shift\", \"change ... to ...\", \"put ... on ...\", AND the message clearly states " +
+    "a destination day. If the student is only asking about their schedule — e.g. \"do I have class on " +
+    "Monday\", \"what classes are on Friday\", \"when is my math class\" — with no requested change, " +
+    "that is NOT a move request, even though it may mention day names or subjects. Return {\"action\":\"none\"} " +
+    "for those. " +
     "The days currently present in the student's schedule are: " + daysPresent.join(", ") + ". " +
     "The subjects currently present are: " + subjectsPresent.join(", ") + ". " +
     "Return ONLY a JSON object, with no markdown formatting, no code fences, and no explanation. " +
-    "If the message is a request to move class(es), return exactly: " +
+    "If the message is a genuine move request, return exactly: " +
     "{\"action\":\"move\"," +
     "\"from_day\":<the source day from the schedule's day list, or null if the student named a specific " +
     "subject instead of a day and you don't know which day it falls on>," +
-    "\"to_day\":\"<the destination day, normalized to a full day name like Sunday>\"," +
+    "\"to_day\":\"<the destination day, REQUIRED, normalized to a full day name like Sunday — never null " +
+    "for a move action; if you cannot tell the destination day, use action \\\"unclear\\\" instead>\"," +
     "\"selector\":\"<one of: all, subject, first, last>\"," +
     "\"subject\":<the exact subject name from the subjects list if selector is subject, otherwise null>," +
     "\"new_time\":<a plain time string like \"5:00 AM\" if the student specified a new time for the class, otherwise null>}. " +
@@ -197,10 +206,11 @@ async function parseScheduleEditRequest(message, scheduleEntries) {
     "Use selector \"first\" if they refer to their first/earliest class on a stated day. " +
     "Use selector \"last\" if they refer to their last/latest class on a stated day. " +
     "Note: selector \"first\" or \"last\" REQUIRE a from_day since they depend on a specific day's ordering. " +
-    "If the message is NOT a request to move classes (e.g. it's a question, or unrelated), return exactly: " +
+    "If the message is NOT a move request (including plain questions), return exactly: " +
     "{\"action\":\"none\"}. " +
-    "If it looks like a move request but selector is \"all\", \"first\", or \"last\" and you cannot " +
-    "confidently match from_day to one of the schedule's actual days, return exactly: {\"action\":\"unclear\"}.\n\n" +
+    "If it looks like a move request but you cannot confidently determine to_day, or (for selectors " +
+    "\"all\", \"first\", \"last\") cannot confidently match from_day to one of the schedule's actual days, " +
+    "return exactly: {\"action\":\"unclear\"}.\n\n" +
     "STUDENT MESSAGE: " + message;
 
   return withRetry(async () => {

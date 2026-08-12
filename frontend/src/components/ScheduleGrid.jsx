@@ -1,3 +1,4 @@
+// frontend/src/components/ScheduleGrid.jsx
 import { useMemo, useState, useEffect } from "react";
 import { API_BASE_URL } from "../config";
 
@@ -43,6 +44,41 @@ function TrashIcon() {
   );
 }
 
+function SlidersIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+      <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+      <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+    </svg>
+  );
+}
+
 function timeToMinutes(label) {
   const match = label.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (!match) return null;
@@ -80,7 +116,7 @@ function saveColors(colors) {
   localStorage.setItem("astra_schedule_colors", JSON.stringify(colors));
 }
 
-// ── Edit Modal ─────────────────────────────────────────────
+// ── Edit Modal (single entry, opened from a grid block or the list) ──
 
 function EditModal({ entry, color, onSave, onDelete, onClose }) {
   const [subject, setSubject] = useState(entry.subject || "");
@@ -181,6 +217,216 @@ function EditModal({ entry, color, onSave, onDelete, onClose }) {
   );
 }
 
+// ── Customize Modal (list / add / bulk move) ──────────────────
+
+function CustomizeModal({ schedule, colors, onEditRequest, onDeleteRequest, onAdd, onBulkMove, onClose }) {
+  const [tab, setTab] = useState("list");
+
+  // Add tab state
+  const [addSubject, setAddSubject] = useState("");
+  const [addDay, setAddDay] = useState("Monday");
+  const [addTime, setAddTime] = useState("");
+  const [addRoom, setAddRoom] = useState("");
+  const [addColor, setAddColor] = useState(PRESET_COLORS[0]);
+  const [adding, setAdding] = useState(false);
+  const [addMessage, setAddMessage] = useState("");
+
+  // Bulk move tab state
+  const [fromDay, setFromDay] = useState("Monday");
+  const [toDay, setToDay] = useState("Tuesday");
+  const [bulkTime, setBulkTime] = useState("");
+  const [moving, setMoving] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState("");
+
+  // List tab state
+  const [rowDeleteConfirm, setRowDeleteConfirm] = useState(null);
+
+  const groupedEntries = useMemo(() => {
+    const map = {};
+    DAYS.forEach((d) => { map[d] = []; });
+    schedule.forEach((entry) => {
+      const dayKey = DAYS.find((d) => entry.day && d.toLowerCase() === entry.day.toLowerCase());
+      if (dayKey) map[dayKey].push(entry);
+    });
+    return map;
+  }, [schedule]);
+
+  async function handleAddSubmit() {
+    if (!addSubject.trim() || !addTime.trim()) return;
+    setAdding(true);
+    setAddMessage("");
+    const ok = await onAdd(
+      { subject: addSubject.trim(), day: addDay, time: addTime.trim(), room: addRoom.trim() },
+      addColor
+    );
+    setAdding(false);
+    if (ok) {
+      setAddMessage(`Added ${addSubject.trim()} on ${addDay}.`);
+      setAddSubject(""); setAddTime(""); setAddRoom("");
+    } else {
+      setAddMessage("Couldn't add that class — try again.");
+    }
+  }
+
+  async function handleBulkSubmit() {
+    setMoving(true);
+    setBulkMessage("");
+    const result = await onBulkMove(fromDay, toDay, bulkTime.trim() || null);
+    setMoving(false);
+    setBulkMessage(result?.message || "Couldn't move those classes — try again.");
+  }
+
+  return (
+    <div className="sched-modal-overlay" onClick={onClose}>
+      <div className="sched-modal sched-customize-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sched-modal-header">
+          <span className="sched-modal-title"><SlidersIcon /> Customize Schedule</span>
+          <button className="sched-modal-close" onClick={onClose}><CloseIcon /></button>
+        </div>
+
+        <div className="sched-customize-tabs">
+          <button className={"sched-tab" + (tab === "list" ? " active" : "")} onClick={() => setTab("list")}>All Classes</button>
+          <button className={"sched-tab" + (tab === "add" ? " active" : "")} onClick={() => setTab("add")}>Add Class</button>
+          <button className={"sched-tab" + (tab === "bulk" ? " active" : "")} onClick={() => setTab("bulk")}>Bulk Move</button>
+        </div>
+
+        <div className="sched-modal-body sched-customize-body">
+          {tab === "list" && (
+            <div className="sched-customize-list">
+              {DAYS.map((day) => (
+                groupedEntries[day].length === 0 ? null : (
+                  <div key={day} className="sched-list-daygroup">
+                    <div className="sched-list-daylabel">{day}</div>
+                    {groupedEntries[day].map((entry) => (
+                      <div key={entry.id} className="sched-list-row">
+                        <span
+                          className="sched-list-dot"
+                          style={{ background: colors[entry.id] || PRESET_COLORS[0] }}
+                        />
+                        <div className="sched-list-info">
+                          <span className="sched-list-subject">{entry.subject}</span>
+                          <span className="sched-list-meta">{entry.time}{entry.room ? ` · ${entry.room}` : ""}</span>
+                        </div>
+                        {rowDeleteConfirm === entry.id ? (
+                          <div className="sched-list-actions">
+                            <button className="sched-btn sched-btn-danger sched-btn-sm" onClick={() => { onDeleteRequest(entry.id); setRowDeleteConfirm(null); }}>Yes</button>
+                            <button className="sched-btn sched-btn-ghost sched-btn-sm" onClick={() => setRowDeleteConfirm(null)}>No</button>
+                          </div>
+                        ) : (
+                          <div className="sched-list-actions">
+                            <button className="sched-btn sched-btn-ghost sched-btn-icon" onClick={() => onEditRequest(entry)} title="Edit">
+                              <EditIcon />
+                            </button>
+                            <button className="sched-btn sched-btn-ghost sched-btn-icon" onClick={() => setRowDeleteConfirm(entry.id)} title="Delete">
+                              <TrashIcon />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              ))}
+              {schedule.length === 0 && (
+                <div className="sched-customize-empty">No classes yet — add one from the Add Class tab.</div>
+              )}
+            </div>
+          )}
+
+          {tab === "add" && (
+            <div className="sched-customize-add">
+              <label className="sched-field-label">Subject</label>
+              <input
+                className="sched-field-input"
+                value={addSubject}
+                onChange={(e) => setAddSubject(e.target.value)}
+                placeholder="e.g. Data Structures"
+              />
+
+              <label className="sched-field-label">Day</label>
+              <select className="sched-field-input" value={addDay} onChange={(e) => setAddDay(e.target.value)}>
+                {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+
+              <label className="sched-field-label">Time (e.g. 8:00 AM - 9:30 AM)</label>
+              <input
+                className="sched-field-input"
+                value={addTime}
+                onChange={(e) => setAddTime(e.target.value)}
+                placeholder="8:00 AM - 9:30 AM"
+              />
+
+              <label className="sched-field-label">Room</label>
+              <input
+                className="sched-field-input"
+                value={addRoom}
+                onChange={(e) => setAddRoom(e.target.value)}
+                placeholder="e.g. Room 301"
+              />
+
+              <label className="sched-field-label">Highlight Color</label>
+              <div className="sched-color-row">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    className={"sched-color-swatch" + (addColor === c ? " selected" : "")}
+                    style={{ background: c }}
+                    onClick={() => setAddColor(c)}
+                    title={c}
+                  />
+                ))}
+                <input
+                  type="color"
+                  className="sched-color-custom"
+                  value={addColor}
+                  onChange={(e) => setAddColor(e.target.value)}
+                  title="Custom color"
+                />
+              </div>
+
+              {addMessage && <div className="sched-customize-message">{addMessage}</div>}
+
+              <button className="sched-btn sched-btn-primary sched-btn-full" onClick={handleAddSubmit} disabled={adding}>
+                <PlusIcon /> {adding ? "Adding…" : "Add Class"}
+              </button>
+            </div>
+          )}
+
+          {tab === "bulk" && (
+            <div className="sched-customize-bulk">
+              <label className="sched-field-label">Move all classes from</label>
+              <div className="sched-bulk-dayrow">
+                <select className="sched-field-input" value={fromDay} onChange={(e) => setFromDay(e.target.value)}>
+                  {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <ArrowRightIcon />
+                <select className="sched-field-input" value={toDay} onChange={(e) => setToDay(e.target.value)}>
+                  {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+
+              <label className="sched-field-label">New start time (optional — leave blank to keep existing times)</label>
+              <input
+                className="sched-field-input"
+                value={bulkTime}
+                onChange={(e) => setBulkTime(e.target.value)}
+                placeholder="e.g. 9:00 AM"
+              />
+
+              {bulkMessage && <div className="sched-customize-message">{bulkMessage}</div>}
+
+              <button className="sched-btn sched-btn-primary sched-btn-full" onClick={handleBulkSubmit} disabled={moving || fromDay === toDay}>
+                {moving ? "Moving…" : `Move ${fromDay} classes to ${toDay}`}
+              </button>
+              {fromDay === toDay && <div className="sched-customize-hint">Pick two different days.</div>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────
 
 function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
@@ -188,6 +434,7 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
   const [editingEntry, setEditingEntry] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   useEffect(() => {
     saveColors(colors);
@@ -263,6 +510,40 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
     }
   }
 
+  async function handleAddEntry(fields, color) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/schedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(fields)
+      });
+      if (!res.ok) return false;
+      const entry = await res.json();
+      if (entry?.id) setColors((prev) => ({ ...prev, [entry.id]: color }));
+      onScheduleChange?.();
+      return true;
+    } catch (err) {
+      console.error("Failed to add entry:", err);
+      return false;
+    }
+  }
+
+  async function handleBulkMove(fromDay, toDay, newTime) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/schedule/bulk-move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ fromDay, toDay, newTime })
+      });
+      const data = await res.json();
+      onScheduleChange?.();
+      return data;
+    } catch (err) {
+      console.error("Failed bulk move:", err);
+      return null;
+    }
+  }
+
   return (
     <aside className="schedule-panel">
       <div className="schedule-panel-header">
@@ -270,6 +551,9 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
           <CalendarIcon /> My Schedule
         </span>
         <div className="schedule-panel-header-actions">
+          <button className="sched-customize-btn" onClick={() => setCustomizeOpen(true)} title="Customize schedule">
+            <SlidersIcon /> Customize
+          </button>
           {hasAnySchedule && !confirmClear && (
             <button className="sched-clear-btn" onClick={() => setConfirmClear(true)} title="Clear all">
               <TrashIcon /> Clear
@@ -294,7 +578,7 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
 
       {!hasAnySchedule ? (
         <div className="schedule-panel-empty">
-          No schedule uploaded yet. Use "Upload my schedule" in the chat.
+          No schedule uploaded yet. Use "Upload my schedule" in the chat, or add classes via Customize.
         </div>
       ) : (
         <div className="schedule-matrix">
@@ -354,6 +638,18 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
           onSave={(fields, color) => handleSaveEntry(editingEntry.id, fields, color)}
           onDelete={() => handleDeleteEntry(editingEntry.id)}
           onClose={() => setEditingEntry(null)}
+        />
+      )}
+
+      {customizeOpen && (
+        <CustomizeModal
+          schedule={schedule}
+          colors={colors}
+          onEditRequest={(entry) => setEditingEntry(entry)}
+          onDeleteRequest={(id) => handleDeleteEntry(id)}
+          onAdd={handleAddEntry}
+          onBulkMove={handleBulkMove}
+          onClose={() => setCustomizeOpen(false)}
         />
       )}
     </aside>

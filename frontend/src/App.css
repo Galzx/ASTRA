@@ -832,18 +832,20 @@ html.dark-mode .chat-input input {
   width: 660px;
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 12px;
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 20px 60px -25px rgba(15, 23, 42, 0.25);
   transition: background-color 0.4s ease, border-color 0.4s ease;
 }
 
 html.dark-mode .schedule-panel {
   background: rgba(13, 16, 28, 0.35);
   border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px -25px rgba(0, 0, 0, 0.7), 0 0 50px -20px rgba(99, 102, 241, 0.2);
 }
 
 .schedule-panel-header {
@@ -899,13 +901,13 @@ html.dark-mode .schedule-matrix-corner {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #000) 100%);
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
   text-align: center;
   padding: 8px 4px;
-  border-radius: 4px 4px 0 0;
+  border-radius: 6px 6px 0 0;
 }
 
 .schedule-matrix-timecol {
@@ -942,12 +944,18 @@ html.dark-mode .schedule-matrix-corner {
   background: var(--accent-bg);
   border: 1px solid var(--accent);
   border-left: 3px solid var(--accent);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 4px 6px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 1px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.schedule-matrix-block:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -6px rgba(15, 23, 42, 0.35);
 }
 
 .schedule-matrix-block-subject {
@@ -1117,6 +1125,11 @@ html.dark-mode .offline-banner {
   to { transform: rotate(360deg); }
 }
 
+@keyframes schedModalIn {
+  0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ─── Schedule Edit Modal ───────────────────────────────── */
 
 .sched-modal-overlay {
@@ -1138,6 +1151,7 @@ html.dark-mode .offline-banner {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
+  animation: schedModalIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sched-modal-header {
@@ -1152,6 +1166,9 @@ html.dark-mode .offline-banner {
   font-weight: 600;
   font-size: 15px;
   color: var(--text-h);
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .sched-modal-close {
@@ -1289,6 +1306,16 @@ html.dark-mode .offline-banner {
   font-size: 12px;
 }
 
+.sched-btn-full {
+  width: 100%;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 10px 14px;
+}
+
 .sched-delete-confirm-text {
   font-size: 13px;
   color: var(--text);
@@ -1303,7 +1330,8 @@ html.dark-mode .offline-banner {
   gap: 6px;
 }
 
-.sched-clear-btn {
+.sched-clear-btn,
+.sched-customize-btn {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1322,9 +1350,174 @@ html.dark-mode .offline-banner {
   color: #ef4444;
 }
 
+.sched-customize-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
 .sched-clear-confirm-text {
   font-size: 12px;
   color: var(--text);
+}
+
+/* ─── Schedule Customize Modal ───────────────────────────── */
+
+.sched-customize-modal {
+  width: 440px;
+  max-height: 82vh;
+}
+
+.sched-customize-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sched-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.sched-tab:hover {
+  color: var(--text-h);
+}
+
+.sched-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.sched-customize-body {
+  overflow-y: auto;
+  max-height: calc(82vh - 110px);
+}
+
+.sched-customize-empty {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.75;
+  padding: 20px 4px;
+  text-align: center;
+}
+
+/* All Classes tab */
+
+.sched-customize-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sched-list-daygroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sched-list-daylabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.sched-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
+.sched-list-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sched-list-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.sched-list-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sched-list-meta {
+  font-size: 11px;
+  color: var(--text);
+}
+
+.sched-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Add Class tab */
+
+.sched-customize-add,
+.sched-customize-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Bulk Move tab */
+
+.sched-bulk-dayrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sched-bulk-dayrow select {
+  flex: 1;
+}
+
+.sched-bulk-dayrow svg {
+  flex-shrink: 0;
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.sched-customize-message {
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+
+.sched-customize-hint {
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.7;
+  text-align: center;
 }
 
 /* ─── Quota Banner ──────────────────────────────────────── */
@@ -1610,5 +1803,17 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
   .kb-controls select {
     width: 100%;
     box-sizing: border-box;
+  }
+
+  /* Customize modal: nearly full-screen on mobile instead of
+     a fixed 440px width that would overflow the viewport */
+  .sched-customize-modal {
+    width: 100%;
+    max-width: calc(100vw - 24px);
+    max-height: 88vh;
+  }
+
+  .sched-customize-body {
+    max-height: calc(88vh - 110px);
   }
 }
