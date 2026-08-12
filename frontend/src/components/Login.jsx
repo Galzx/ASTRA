@@ -410,7 +410,7 @@ function Login({ onLogin }) {
                   </p>
                 )}
                 {isSignup && !studentNumberStatus.touched && (
-                  <p className="field-hint">Format: 1-XXXXXXf, e.g. 1-xxxxxxf</p>
+                  <p className="field-hint">Format: 1-250614f, e.g. 1-xxxxxxf</p>
                 )}
               </div>
 
