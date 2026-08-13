@@ -44,6 +44,17 @@ const OFFLINE_BANNER_MESSAGE =
 const OFFLINE_CHAT_MESSAGE =
   "I couldn't reach the server just now. It may still be starting up — please try sending that again in a moment.";
 
+const WAKING_BANNER_MESSAGE =
+  "ASTRA's server is waking up (it sleeps when idle) — this can take up to a minute. Feel free to type your message while you wait.";
+
+const UNREACHABLE_BANNER_MESSAGE =
+  "Still can't reach ASTRA's server after several tries. Please refresh the page in a bit, or let your instructor know if this continues.";
+
+// ── Backend wake-up retry config ─────────────────────────────
+
+const WAKE_MAX_ATTEMPTS = 12;   // ~60s of retrying at 5s intervals
+const WAKE_RETRY_MS = 5000;
+
 // ── Session persistence helpers ─────────────────────────────
 
 function reviveMessages(rawMessages) {
@@ -258,6 +269,7 @@ function Chatbot({ username, fullName, token }) {
   );
   const [isTyping, setIsTyping] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [backendStatus, setBackendStatus] = useState("checking"); // "checking" | "waking" | "ready" | "unreachable"
   const [quotaSeconds, setQuotaSeconds] = useState(null);
   const [quotaPercent, setQuotaPercent] = useState(null);
   const [examplePrompt, setExamplePrompt] = useState(() => getRandomPrompt());
@@ -344,18 +356,57 @@ function Chatbot({ username, fullName, token }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isAttachMenuOpen]);
 
+  // Returns true/false so callers (like the wake-up retry loop
+  // below) can tell whether the backend actually responded.
   const fetchQuota = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/quota`);
+      if (!response.ok) throw new Error("Quota fetch failed");
       const data = await response.json();
       setQuotaPercent(typeof data.percent === "number" ? data.percent : null);
+      return true;
     } catch (error) {
       console.error("Failed to fetch quota:", error);
+      return false;
     }
   }, []);
 
+  // Proactive backend wake-up check. Render's free tier spins
+  // down when idle, so the very first request after a while can
+  // take 30-60s. Instead of letting the user hit "Send" into
+  // silence, ping on mount and retry with a fixed interval,
+  // showing a calm "waking up" banner the whole time. Only after
+  // real retries are exhausted do we call it unreachable.
   useEffect(() => {
-    fetchQuota();
+    let cancelled = false;
+    let attempt = 0;
+    let timer;
+
+    async function attemptWake() {
+      attempt += 1;
+      const ok = await fetchQuota();
+      if (cancelled) return;
+
+      if (ok) {
+        setBackendStatus("ready");
+        return;
+      }
+
+      if (attempt >= WAKE_MAX_ATTEMPTS) {
+        setBackendStatus("unreachable");
+        return;
+      }
+
+      setBackendStatus("waking");
+      timer = setTimeout(attemptWake, WAKE_RETRY_MS);
+    }
+
+    attemptWake();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [fetchQuota]);
 
   const fetchSchedule = useCallback(async () => {
@@ -434,6 +485,9 @@ function Chatbot({ username, fullName, token }) {
       if (handleQuotaResponse(data)) return;
       if (!response.ok) throw new Error("Server error");
 
+      // A real reply means the backend is definitely up —
+      // clear any stale "waking up" state.
+      setBackendStatus("ready");
       setMessages((prev) => [...prev, new ChatMessage("astra", data.reply)]);
 
       if (data.scheduleCleared || (/schedule/i.test(studentText) && isScheduleOpen)) {
@@ -441,7 +495,13 @@ function Chatbot({ username, fullName, token }) {
       }
     } catch (error) {
       console.error("Connection error:", error);
-      setIsOffline(true);
+      // Only show the "offline" (red) banner for a drop that
+      // happens once we know the backend was already up — while
+      // it's still waking, the amber "waking up" banner already
+      // explains what's going on, so don't stack a second one.
+      if (backendStatus === "ready") {
+        setIsOffline(true);
+      }
       setMessages((prev) => [
         ...prev,
         new ChatMessage("astra", OFFLINE_CHAT_MESSAGE)
@@ -476,6 +536,8 @@ function Chatbot({ username, fullName, token }) {
       if (handleQuotaResponse(data)) return;
       if (!response.ok) throw new Error("Server error");
 
+      setBackendStatus("ready");
+
       const count = data.schedule?.length || 0;
       setMessages((prev) => [
         ...prev,
@@ -490,7 +552,9 @@ function Chatbot({ username, fullName, token }) {
       if (isScheduleOpen) fetchSchedule();
     } catch (error) {
       console.error("Schedule upload error:", error);
-      setIsOffline(true);
+      if (backendStatus === "ready") {
+        setIsOffline(true);
+      }
       setMessages((prev) => [
         ...prev,
         new ChatMessage("astra", OFFLINE_CHAT_MESSAGE)
@@ -671,7 +735,19 @@ function Chatbot({ username, fullName, token }) {
           </div>
         </div>
 
-        {isOffline && (
+        {backendStatus === "waking" && (
+          <div className="quota-banner">
+            <WarningIcon /> {WAKING_BANNER_MESSAGE}
+          </div>
+        )}
+
+        {backendStatus === "unreachable" && (
+          <div className="offline-banner">
+            <WarningIcon /> {UNREACHABLE_BANNER_MESSAGE}
+          </div>
+        )}
+
+        {isOffline && backendStatus === "ready" && (
           <div className="offline-banner">
             <WarningIcon /> {OFFLINE_BANNER_MESSAGE}
           </div>

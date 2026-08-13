@@ -5,8 +5,20 @@ const Student = require("../models/Student");
 const Admin = require("../models/Admin");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "astra_secret_key_change_in_production";
-const ADMIN_KEY = process.env.ADMIN_KEY || "100307";
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const ADMIN_KEY = process.env.ADMIN_KEY;
+
+if (!JWT_SECRET) {
+  throw new Error(
+    "JWT_SECRET is not set. Add it to backend/.env (local) or your host's environment variables (e.g. Render dashboard)."
+  );
+}
+if (!ADMIN_KEY) {
+  throw new Error(
+    "ADMIN_KEY is not set. Add it to backend/.env (local) or your host's environment variables (e.g. Render dashboard)."
+  );
+}
 
 router.post("/signup", async (req, res) => {
   try {

@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect, useEffect } from "react";
+import { useState, useRef, useLayoutEffect, useEffect, useCallback } from "react";
 import logo from "../assets/astra-logo.svg";
 import { API_BASE_URL } from "../config";
 import "./Login.css";
@@ -6,6 +6,16 @@ import "./Login.css";
 // Student numbers look like 1-250614f: a leading "1-", six digits, then a
 // single letter. Case-insensitive so 1-250614F and 1-250614f both pass.
 const STUDENT_NUMBER_PATTERN = /^1-\d{6}[a-zA-Z]$/;
+
+// ── Backend wake-up retry config (same pattern as Chatbot.jsx) ──
+const WAKE_MAX_ATTEMPTS = 12; // ~60s of retrying at 5s intervals
+const WAKE_RETRY_MS = 5000;
+
+const WAKING_BANNER_MESSAGE =
+  "ASTRA's server is waking up (it sleeps when idle) — this can take up to a minute. Feel free to fill out the form while you wait.";
+
+const UNREACHABLE_BANNER_MESSAGE =
+  "Still can't reach ASTRA's server after several tries. Please refresh the page in a bit, or let your instructor know if this continues.";
 
 function getStudentNumberStatus(value) {
   if (!value) return { touched: false, valid: false, message: "" };
@@ -167,6 +177,17 @@ function StatusIcon({ valid }) {
   );
 }
 
+// Warning triangle used in the backend wake-up / unreachable banners.
+function WarningIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
 function Login({ onLogin }) {
   const [isSignup, setIsSignup] = useState(false);
   const [username, setUsername] = useState("");
@@ -178,6 +199,9 @@ function Login({ onLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [cardHeight, setCardHeight] = useState(null);
+
+  // "checking" | "waking" | "ready" | "unreachable"
+  const [backendStatus, setBackendStatus] = useState("checking");
 
   const loginSlotRef = useRef(null);
   const signupSlotRef = useRef(null);
@@ -207,6 +231,56 @@ function Login({ onLogin }) {
 
     return () => cancelAnimationFrame(frame);
   }, [role, error, isSignup, username, password]);
+
+  // Ping the backend without needing a token (this page is
+  // reached before any login happens). Returns true/false so the
+  // wake-up loop below knows whether to keep retrying.
+  const checkBackend = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/quota`);
+      return response.ok;
+    } catch (err) {
+      return false;
+    }
+  }, []);
+
+  // Proactive backend wake-up check, same pattern as Chatbot.jsx.
+  // Render's free tier spins down when idle, so the very first
+  // hit on this page can be the one that eats the 30-60s cold
+  // start. Ping on mount and retry with a fixed interval, showing
+  // a calm "waking up" banner the whole time instead of letting
+  // someone submit into silence. The form stays usable throughout.
+  useEffect(() => {
+    let cancelled = false;
+    let attempt = 0;
+    let timer;
+
+    async function attemptWake() {
+      attempt += 1;
+      const ok = await checkBackend();
+      if (cancelled) return;
+
+      if (ok) {
+        setBackendStatus("ready");
+        return;
+      }
+
+      if (attempt >= WAKE_MAX_ATTEMPTS) {
+        setBackendStatus("unreachable");
+        return;
+      }
+
+      setBackendStatus("waking");
+      timer = setTimeout(attemptWake, WAKE_RETRY_MS);
+    }
+
+    attemptWake();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [checkBackend]);
 
   const switchTo = (signup) => {
     setIsSignup(signup);
@@ -251,6 +325,9 @@ function Login({ onLogin }) {
         return;
       }
 
+      // A real reply confirms the backend is up — clear any
+      // stale wake-up state left over from the initial ping.
+      setBackendStatus("ready");
       onLogin(data.token);
     } catch (err) {
       setError("Error connecting to server. Make sure the backend is running.");
@@ -284,6 +361,20 @@ function Login({ onLogin }) {
     <div className="login-container">
       <div className="login-page-bg" aria-hidden="true" />
       <StarField />
+
+      {backendStatus === "waking" && (
+        <div className="login-status-banner login-status-waking">
+          <WarningIcon />
+          <span>{WAKING_BANNER_MESSAGE}</span>
+        </div>
+      )}
+
+      {backendStatus === "unreachable" && (
+        <div className="login-status-banner login-status-unreachable">
+          <WarningIcon />
+          <span>{UNREACHABLE_BANNER_MESSAGE}</span>
+        </div>
+      )}
 
       <div
         className="login-split-card"

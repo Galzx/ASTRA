@@ -546,3 +546,39 @@
     padding: 30px 26px;
   }
 }
+
+.login-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 480px;
+  margin: 0 auto 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  position: relative;
+  z-index: 2;
+}
+
+.login-status-waking {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.login-status-unreachable {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.dark-mode .login-status-waking {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.dark-mode .login-status-unreachable {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
