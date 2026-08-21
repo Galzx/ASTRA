@@ -19,7 +19,7 @@ const {
   deleteScheduleEntry
 } = require("./data/schedule");
 const authRoutes = require("./routes/auth");
-const authenticateToken = require("./middleware/auth");
+const { authenticateToken, requireAdmin } = require("./middleware/auth");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -110,6 +110,10 @@ app.get("/api/quota", (req, res) => {
   res.json(quota.getQuotaStatus());
 });
 
+// ── Knowledge base ─────────────────────────────────────────
+// GET stays public (read-only, used by chat/search). Writes require an
+// authenticated admin — previously these had no backend check at all.
+
 app.get("/api/knowledge", async (req, res) => {
   try {
     const entries = await getAllEntries();
@@ -120,7 +124,7 @@ app.get("/api/knowledge", async (req, res) => {
   }
 });
 
-app.post("/api/knowledge", async (req, res) => {
+app.post("/api/knowledge", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { category, title, keywords, content } = req.body || {};
     if (!category || !title || !keywords || !content) {
@@ -134,7 +138,7 @@ app.post("/api/knowledge", async (req, res) => {
   }
 });
 
-app.put("/api/knowledge/:id", async (req, res) => {
+app.put("/api/knowledge/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { category, title, keywords, content } = req.body || {};
     if (!category || !title || !keywords || !content) {
@@ -148,7 +152,7 @@ app.put("/api/knowledge/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/knowledge/:id", async (req, res) => {
+app.delete("/api/knowledge/:id", authenticateToken, requireAdmin, async (req, res) => {
   try {
     const result = await deleteEntry(req.params.id);
     res.json(result);

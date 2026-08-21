@@ -92,10 +92,10 @@ function AdminKnowledgeBase() {
         <span className="akb-count">{entries.length} {entries.length === 1 ? "entry" : "entries"}</span>
       </div>
 
-      <form className="kb-admin-form" onSubmit={handleSubmit}>
+      <form className="akb-form" onSubmit={handleSubmit}>
 
-        <div className="kb-form-row">
-          <div className="kb-field">
+        <div className="akb-form-row">
+          <div className="akb-field">
             <label htmlFor="kb-category">Category</label>
             <input
               id="kb-category"
@@ -106,7 +106,7 @@ function AdminKnowledgeBase() {
             />
           </div>
 
-          <div className="kb-field">
+          <div className="akb-field">
             <label htmlFor="kb-title">Title</label>
             <input
               id="kb-title"
@@ -118,7 +118,7 @@ function AdminKnowledgeBase() {
           </div>
         </div>
 
-        <div className="kb-field">
+        <div className="akb-field">
           <label htmlFor="kb-keywords">Keywords</label>
           <input
             id="kb-keywords"
@@ -129,7 +129,7 @@ function AdminKnowledgeBase() {
           />
         </div>
 
-        <div className="kb-field">
+        <div className="akb-field">
           <label htmlFor="kb-content">Content</label>
           <textarea
             id="kb-content"
@@ -139,12 +139,12 @@ function AdminKnowledgeBase() {
           />
         </div>
 
-        <div className="kb-admin-form-actions">
-          <button type="submit" className="kb-btn-primary">
+        <div className="akb-form-actions">
+          <button type="submit" className="akb-btn-primary">
             {editingId ? "Update Entry" : "Add Entry"}
           </button>
           {editingId && (
-            <button type="button" className="kb-btn-ghost" onClick={resetForm}>
+            <button type="button" className="akb-btn-ghost" onClick={resetForm}>
               Cancel
             </button>
           )}
@@ -153,31 +153,31 @@ function AdminKnowledgeBase() {
       </form>
 
       {loading && (
-        <div className="kb-state">
-          <span className="spinner"></span>
+        <div className="akb-state">
+          <span className="akb-spinner"></span>
           Loading knowledge base...
         </div>
       )}
 
       {!loading && entries.length === 0 && (
-        <div className="kb-state kb-state-empty">
+        <div className="akb-state akb-state-empty">
           No entries yet — add your first one above.
         </div>
       )}
 
-      <div className="kb-list">
+      <div className="akb-list">
         {entries.map((entry) => (
-          <div key={entry.id} className="kb-entry">
-            <div className="kb-entry-top">
-              <span className="kb-category">{entry.category}</span>
-              <div className="kb-entry-actions">
-                <button className="kb-icon-btn" onClick={() => handleEdit(entry)} aria-label="Edit entry">
+          <div key={entry.id} className="akb-entry">
+            <div className="akb-entry-top">
+              <span className="akb-category">{entry.category}</span>
+              <div className="akb-entry-actions">
+                <button className="akb-icon-btn" onClick={() => handleEdit(entry)} aria-label="Edit entry">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 20h9" />
                     <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
                   </svg>
                 </button>
-                <button className="kb-icon-btn kb-icon-btn-danger" onClick={() => handleDelete(entry.id)} aria-label="Delete entry">
+                <button className="akb-icon-btn akb-icon-btn-danger" onClick={() => handleDelete(entry.id)} aria-label="Delete entry">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 6h18" />
                     <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />

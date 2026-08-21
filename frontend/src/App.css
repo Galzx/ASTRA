@@ -1219,7 +1219,7 @@ html.dark-mode .offline-banner {
 
 .sched-btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--bg);
   margin-left: auto;
 }
 
@@ -1282,21 +1282,14 @@ html.dark-mode .offline-banner {
   gap: 6px;
 }
 
-.sched-clear-btn,
-.sched-customize-btn {
+.schedule-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  cursor: pointer;
-  color: var(--text);
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
 }
-
 .sched-clear-btn:hover {
   border-color: #ef4444;
   color: #ef4444;
@@ -1390,7 +1383,7 @@ html.dark-mode .offline-banner {
   align-items: center;
   gap: 10px;
   padding: 8px 8px;
-  border-radius: 8px;
+  border-radius: 3px;
   border: 1px solid var(--border);
   background: var(--code-bg);
 }

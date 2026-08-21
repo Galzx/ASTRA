@@ -1,6 +1,12 @@
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || "astra_secret_key_change_in_production";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error(
+    "JWT_SECRET is not set. Add it to backend/.env (local) or your host's environment variables (e.g. Render dashboard)."
+  );
+}
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
@@ -19,4 +25,11 @@ function authenticateToken(req, res, next) {
   });
 }
 
-module.exports = authenticateToken;
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  next();
+}
+
+module.exports = { authenticateToken, requireAdmin };
