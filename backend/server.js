@@ -26,7 +26,26 @@ const PORT = process.env.PORT || 5000;
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-app.use(cors());
+// ── CORS ───────────────────────────────────────────────────
+// Comma-separated list of allowed origins, e.g.:
+// CORS_ORIGINS=https://astra-lite-frontend.onrender.com,http://localhost:5173
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, server-to-server, some mobile clients)
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`Blocked CORS request from origin: ${origin}`);
+    return callback(new Error("Not allowed by CORS"));
+  }
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const upload = multer({ dest: path.join(__dirname, "uploads_tmp") });

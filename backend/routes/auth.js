@@ -1,5 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const rateLimit = require("express-rate-limit");
 const User = require("../models/User");
 const Student = require("../models/Student");
 const Admin = require("../models/Admin");
@@ -20,7 +21,23 @@ if (!ADMIN_KEY) {
   );
 }
 
-router.post("/signup", async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login attempts. Please try again in a few minutes." }
+});
+
+const signupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many signup attempts. Please try again in a few minutes." }
+});
+
+router.post("/signup", signupLimiter, async (req, res) => {
   try {
     const { username, password, full_name, role, admin_key } = req.body;
 
@@ -59,7 +76,7 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
