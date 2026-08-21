@@ -37,10 +37,11 @@ class QuotaError extends Error {
 // ── Retry wrapper ──────────────────────────────────────────
 
 async function withRetry(fn, maxRetries = 2) {
+  // Count once per user-initiated call, not once per retry attempt.
+  quota.recordRequest();
   let attempt = 0;
   while (true) {
     try {
-      quota.recordRequest();
       return await fn();
     } catch (error) {
       const isQuota = error?.status === 429 ||

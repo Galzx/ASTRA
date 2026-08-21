@@ -1,5 +1,6 @@
 // frontend/src/components/ScheduleGrid.jsx
 import { useMemo, useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { API_BASE_URL } from "../config";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -116,7 +117,122 @@ function saveColors(colors) {
   localStorage.setItem("astra_schedule_colors", JSON.stringify(colors));
 }
 
-// ── Edit Modal (single entry, opened from a grid block or the list) ──
+// ── Time Range Picker helpers ───────────────────────────────
+
+// "08:30" (native time input) → "8:30 AM"
+function nativeToAmPm(val) {
+  if (!val) return "";
+  const [hStr, mStr] = val.split(":");
+  let h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const period = h >= 12 ? "PM" : "AM";
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+// "8:30 AM" → "08:30" (for <input type="time"> value)
+function amPmToNative(amPm) {
+  if (!amPm) return "";
+  const match = amPm.trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return "";
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === "PM" && h !== 12) h += 12;
+  if (period === "AM" && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+// Composed range string: "8:00 AM - 9:30 AM"
+function buildTimeRange(startNative, endNative) {
+  if (!startNative || !endNative) return "";
+  return `${nativeToAmPm(startNative)} - ${nativeToAmPm(endNative)}`;
+}
+
+// Duration label: "1h 30m"
+function durationLabel(startNative, endNative) {
+  if (!startNative || !endNative) return "";
+  const [sh, sm] = startNative.split(":").map(Number);
+  const [eh, em] = endNative.split(":").map(Number);
+  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  if (diff <= 0) return "";
+  const hrs = Math.floor(diff / 60);
+  const mins = diff % 60;
+  if (hrs === 0) return `${mins}m`;
+  if (mins === 0) return `${hrs}h`;
+  return `${hrs}h ${mins}m`;
+}
+
+// ── TimeRangePicker component ───────────────────────────────
+// Replaces the free-text time input with two native time pickers.
+// Props:
+//   value      — current time range string "h:MM AM - h:MM AM"
+//   onChange   — called with the new composed range string
+
+function TimeRangePicker({ value, onChange }) {
+  // Parse existing value back to native HH:MM if editing an entry.
+  const initialStart = value ? amPmToNative(value.split(" - ")[0]) : "";
+  const initialEnd   = value ? amPmToNative(value.split(" - ")[1]) : "";
+
+  const [startNative, setStartNative] = useState(initialStart);
+  const [endNative,   setEndNative]   = useState(initialEnd);
+
+  function handleStart(e) {
+    const v = e.target.value;
+    setStartNative(v);
+    onChange(buildTimeRange(v, endNative));
+  }
+
+  function handleEnd(e) {
+    const v = e.target.value;
+    setEndNative(v);
+    onChange(buildTimeRange(startNative, v));
+  }
+
+  const duration = durationLabel(startNative, endNative);
+  const endIsBeforeStart =
+    startNative && endNative &&
+    endNative <= startNative;
+
+  return (
+    <div className="time-range-picker">
+      <div className="time-range-row">
+        <div className="time-range-field">
+          <span className="time-range-sublabel">Start</span>
+          <input
+            type="time"
+            className="sched-field-input time-range-input"
+            value={startNative}
+            onChange={handleStart}
+          />
+        </div>
+        <span className="time-range-dash">→</span>
+        <div className="time-range-field">
+          <span className="time-range-sublabel">End</span>
+          <input
+            type="time"
+            className="sched-field-input time-range-input"
+            value={endNative}
+            onChange={handleEnd}
+          />
+        </div>
+      </div>
+      {duration && !endIsBeforeStart && (
+        <div className="time-range-preview">
+          {nativeToAmPm(startNative)} – {nativeToAmPm(endNative)}
+          <span className="time-range-duration">{duration}</span>
+        </div>
+      )}
+      {endIsBeforeStart && (
+        <div className="time-range-error">End time must be after start time</div>
+      )}
+    </div>
+  );
+}
+
+
+
 
 function EditModal({ entry, color, onSave, onDelete, onClose }) {
   const [subject, setSubject] = useState(entry.subject || "");
@@ -156,13 +272,8 @@ function EditModal({ entry, color, onSave, onDelete, onClose }) {
             {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
 
-          <label className="sched-field-label">Time (e.g. 8:00 AM - 9:30 AM)</label>
-          <input
-            className="sched-field-input"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            placeholder="8:00 AM - 9:30 AM"
-          />
+          <label className="sched-field-label">Time</label>
+          <TimeRangePicker value={time} onChange={setTime} />
 
           <label className="sched-field-label">Room</label>
           <input
@@ -347,14 +458,8 @@ function CustomizeModal({ schedule, colors, onEditRequest, onDeleteRequest, onAd
               <select className="sched-field-input" value={addDay} onChange={(e) => setAddDay(e.target.value)}>
                 {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
-
-              <label className="sched-field-label">Time (e.g. 8:00 AM - 9:30 AM)</label>
-              <input
-                className="sched-field-input"
-                value={addTime}
-                onChange={(e) => setAddTime(e.target.value)}
-                placeholder="8:00 AM - 9:30 AM"
-              />
+              <label className="sched-field-label">Time</label>
+              <TimeRangePicker value={addTime} onChange={setAddTime} />
 
               <label className="sched-field-label">Room</label>
               <input
@@ -363,7 +468,6 @@ function CustomizeModal({ schedule, colors, onEditRequest, onDeleteRequest, onAd
                 onChange={(e) => setAddRoom(e.target.value)}
                 placeholder="e.g. Room 301"
               />
-
               <label className="sched-field-label">Highlight Color</label>
               <div className="sched-color-row">
                 {PRESET_COLORS.map((c) => (
@@ -545,7 +649,13 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
   }
 
   return (
-    <aside className="schedule-panel">
+    <motion.aside
+      className="schedule-panel"
+      initial={{ opacity: 0, x: 40 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 40 }}
+      transition={{ type: "spring", stiffness: 380, damping: 34 }}
+    >
       <div className="schedule-panel-header">
         <span className="schedule-panel-title">
           <CalendarIcon /> My Schedule
@@ -601,31 +711,41 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
 
           {DAYS.map((day) => (
             <div key={day} className="schedule-matrix-daycol" style={{ height: GRID_HEIGHT }}>
-              {entriesByDay[day].map((entry) => {
-                const top = ((entry.start - GRID_START_MIN) / 60) * HOUR_HEIGHT;
-                const height = ((entry.end - entry.start) / 60) * HOUR_HEIGHT;
-                const color = colors[entry.id] || PRESET_COLORS[0];
-                return (
-                  <div
-                    key={entry.id}
-                    className="schedule-matrix-block"
-                    style={{
-                      top,
-                      height: Math.max(height, 20),
-                      background: color + "26",
-                      borderColor: color,
-                      borderLeftColor: color,
-                      cursor: "pointer"
-                    }}
-                    title={`${entry.subject}${entry.room ? " — " + entry.room : ""} — click to edit`}
-                    onClick={() => setEditingEntry(entry)}
-                  >
-                    <span className="schedule-matrix-block-subject" style={{ color }}>{entry.subject}</span>
-                    <span className="schedule-matrix-block-time">{entry.time}</span>
-                    {entry.room && <span className="schedule-matrix-block-room">{entry.room}</span>}
-                  </div>
-                );
-              })}
+              <AnimatePresence initial={false}>
+                {entriesByDay[day].map((entry) => {
+                  const top = ((entry.start - GRID_START_MIN) / 60) * HOUR_HEIGHT;
+                  const height = ((entry.end - entry.start) / 60) * HOUR_HEIGHT;
+                  const color = colors[entry.id] || PRESET_COLORS[0];
+                  return (
+                    <motion.div
+                      key={entry.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1, top, height: Math.max(height, 20) }}
+                      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                      className="schedule-matrix-block"
+                      style={{
+                        position: "absolute",
+                        top,
+                        height: Math.max(height, 20),
+                        left: 0,
+                        right: 0,
+                        background: color + "26",
+                        borderColor: color,
+                        borderLeftColor: color,
+                        cursor: "pointer"
+                      }}
+                      title={`${entry.subject}${entry.room ? " — " + entry.room : ""} — click to edit`}
+                      onClick={() => setEditingEntry(entry)}
+                    >
+                      <span className="schedule-matrix-block-subject" style={{ color }}>{entry.subject}</span>
+                      <span className="schedule-matrix-block-time">{entry.time}</span>
+                      {entry.room && <span className="schedule-matrix-block-room">{entry.room}</span>}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
           ))}
         </div>
@@ -652,7 +772,7 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
           onClose={() => setCustomizeOpen(false)}
         />
       )}
-    </aside>
+    </motion.aside>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { AnimatePresence } from "framer-motion";
 import ChatMessage from "../models/ChatMessage";
 import ScheduleGrid from "./ScheduleGrid";
 import { API_BASE_URL } from "../config";
@@ -863,14 +864,17 @@ function Chatbot({ username, fullName, token }) {
         />
       )}
 
-      {isScheduleOpen && (
-        <ScheduleGrid
-          schedule={schedule}
-          onClose={() => setIsScheduleOpen(false)}
-          token={token}
-          onScheduleChange={fetchSchedule}
-        />
-      )}
+      <AnimatePresence>
+        {isScheduleOpen && (
+          <ScheduleGrid
+            key="schedule-panel"
+            schedule={schedule}
+            onClose={() => setIsScheduleOpen(false)}
+            token={token}
+            onScheduleChange={fetchSchedule}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

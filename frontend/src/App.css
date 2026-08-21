@@ -738,7 +738,7 @@ main {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
-  border-radius: 6px;
+  border-radius: 3px;
   padding: 6px 10px;
   cursor: pointer;
   white-space: nowrap;
@@ -755,10 +755,12 @@ main {
   gap: 8px;
   padding: 6px 10px;
   background: var(--code-bg);
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
   margin-bottom: 6px;
   font-size: 13px;
   color: var(--text);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
 }
 
 .attached-file-preview button {
@@ -1082,6 +1084,17 @@ html.dark-mode .offline-banner {
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes schedPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Applied to the attach button while a schedule file is uploading */
+.schedule-uploading {
+  animation: schedPulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
 /* ─── Schedule Edit Modal ───────────────────────────────── */
 
 .sched-modal-overlay {
@@ -1097,13 +1110,14 @@ html.dark-mode .offline-banner {
 .sched-modal {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 3px;
   width: 360px;
   max-width: calc(100vw - 32px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
   animation: schedModalIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
 }
 
 .sched-modal-header {
@@ -1290,6 +1304,23 @@ html.dark-mode .offline-banner {
   height: 32px;
   border-radius: 6px;
 }
+.sched-clear-btn,
+.sched-customize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
 .sched-clear-btn:hover {
   border-color: #ef4444;
   color: #ef4444;
@@ -1386,6 +1417,7 @@ html.dark-mode .offline-banner {
   border-radius: 3px;
   border: 1px solid var(--border);
   background: var(--code-bg);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
 }
 
 .sched-list-dot {
@@ -1464,6 +1496,81 @@ html.dark-mode .offline-banner {
   opacity: 0.7;
   text-align: center;
 }
+
+/* ─── Time Range Picker ──────────────────────────────────── */
+
+.time-range-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.time-range-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.time-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.time-range-sublabel {
+  font-size: 11px;
+  color: var(--text);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.time-range-input {
+  /* inherits .sched-field-input sizing; override only what differs */
+  padding: 7px 9px;
+  font-size: 13px;
+}
+
+.time-range-dash {
+  font-size: 14px;
+  color: var(--text);
+  opacity: 0.5;
+  flex-shrink: 0;
+  padding-bottom: 8px;
+}
+
+.time-range-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+.time-range-duration {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 3px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+
+.time-range-error {
+  font-size: 11px;
+  color: #ef4444;
+  padding: 4px 2px;
+}
+
+
 
 /* ─── Quota Banner ──────────────────────────────────────── */
 
@@ -1584,17 +1691,21 @@ html.dark-mode .quota-meter-critical .quota-meter-label {
   gap: 8px;
   padding: 8px 10px;
   border: none;
+  border-left: 2px solid transparent;
   background: none;
-  border-radius: 6px;
+  border-radius: 3px;
   font-size: 13px;
   color: var(--text-h);
   cursor: pointer;
   text-align: left;
+  width: 100%;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .attach-menu-item:hover {
   background: var(--accent-bg);
   color: var(--accent);
+  border-left-color: var(--accent);
 }
 
 /* ─── Chat Disclaimer ────────────────────────────────────── */

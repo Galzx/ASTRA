@@ -18,7 +18,11 @@ function saveSchedule(userId, entries) {
 
         stmt.finalize((err) => {
           if (err) { reject(err); return; }
-          resolve(entries);
+          // Re-query to return the saved rows with their DB-assigned IDs.
+          db.all("SELECT * FROM schedules WHERE user_id = ? ORDER BY id ASC", [userId], (err2, rows) => {
+            if (err2) { reject(err2); return; }
+            resolve(rows);
+          });
         });
       });
     });
