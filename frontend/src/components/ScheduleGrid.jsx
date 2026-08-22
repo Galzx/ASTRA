@@ -240,6 +240,39 @@ function TimeRangePicker({ value, onChange }) {
   );
 }
 
+// ── ColorSwatchPicker ────────────────────────────────────────
+// Shared preset + custom color picker. Previously this markup was
+// duplicated inline in both EditModal and the CustomizeModal "Add"
+// tab — pulled out into one component so the swatch restyle only
+// has to happen in one place. Same manual-pick behavior and the
+// same PRESET_COLORS values as before, just one implementation and
+// a real .selected visual state (see App.css changes).
+
+function ColorSwatchPicker({ value, onChange }) {
+  return (
+    <div className="sched-color-row">
+      {PRESET_COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          className={"sched-color-swatch" + (value === c ? " selected" : "")}
+          style={{ background: c }}
+          onClick={() => onChange(c)}
+          title={c}
+          aria-label={`Use color ${c}`}
+        />
+      ))}
+      <input
+        type="color"
+        className="sched-color-custom"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        title="Custom color"
+      />
+    </div>
+  );
+}
+
 function EditModal({ entry, color, onSave, onDelete, onClose }) {
   const [subject, setSubject] = useState(entry.subject || "");
   const [day, setDay] = useState(entry.day || "Monday");
@@ -290,24 +323,7 @@ function EditModal({ entry, color, onSave, onDelete, onClose }) {
           />
 
           <label className="sched-field-label">Highlight Color</label>
-          <div className="sched-color-row">
-            {PRESET_COLORS.map((c) => (
-              <button
-                key={c}
-                className={"sched-color-swatch" + (selectedColor === c ? " selected" : "")}
-                style={{ background: c }}
-                onClick={() => setSelectedColor(c)}
-                title={c}
-              />
-            ))}
-            <input
-              type="color"
-              className="sched-color-custom"
-              value={selectedColor}
-              onChange={(e) => setSelectedColor(e.target.value)}
-              title="Custom color"
-            />
-          </div>
+          <ColorSwatchPicker value={selectedColor} onChange={setSelectedColor} />
         </div>
 
         <div className="sched-modal-footer">
@@ -475,24 +491,7 @@ function CustomizeModal({ schedule, colors, onEditRequest, onDeleteRequest, onAd
                 placeholder="e.g. Room 301"
               />
               <label className="sched-field-label">Highlight Color</label>
-              <div className="sched-color-row">
-                {PRESET_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    className={"sched-color-swatch" + (addColor === c ? " selected" : "")}
-                    style={{ background: c }}
-                    onClick={() => setAddColor(c)}
-                    title={c}
-                  />
-                ))}
-                <input
-                  type="color"
-                  className="sched-color-custom"
-                  value={addColor}
-                  onChange={(e) => setAddColor(e.target.value)}
-                  title="Custom color"
-                />
-              </div>
+              <ColorSwatchPicker value={addColor} onChange={setAddColor} />
 
               {addMessage && <div className="sched-customize-message">{addMessage}</div>}
 
@@ -538,13 +537,14 @@ function CustomizeModal({ schedule, colors, onEditRequest, onDeleteRequest, onAd
 }
 
 // ── Schedule matrix block (memoized) ─────────────────────────
-// Rendered once per class per day. Without memo, every block in
-// the grid re-renders whenever ScheduleGrid's own state changes
-// (opening the edit modal, the customize modal, clear-confirm,
-// etc.) even though the block's own data hasn't changed. entry
-// and color stay referentially/value-stable across those renders
-// (entriesByDay is cached by useMemo, colors[id] is a stable
-// string), so this actually skips re-rendering in practice.
+// Rendered once per class per day. Uses a single CSS custom
+// property (--block-color) instead of separately overriding
+// background/borderColor/borderLeftColor inline. The block's fill
+// and outer border now come entirely from theme tokens in App.css
+// (var(--accent-bg), var(--border)) so it never looks like a
+// different app's palette dropped onto the schedule; the picked
+// color is only used for the left accent strip and the subject
+// label, matched via var(--block-color) in CSS.
 
 const ScheduleBlock = memo(function ScheduleBlock({ entry, color, onSelect }) {
   const top = ((entry.start - GRID_START_MIN) / 60) * HOUR_HEIGHT;
@@ -564,15 +564,13 @@ const ScheduleBlock = memo(function ScheduleBlock({ entry, color, onSelect }) {
         height,
         left: 0,
         right: 0,
-        background: color + "26",
-        borderColor: color,
-        borderLeftColor: color,
-        cursor: "pointer"
+        cursor: "pointer",
+        "--block-color": color
       }}
       title={`${entry.subject}${entry.room ? " — " + entry.room : ""} — click to edit`}
       onClick={() => onSelect(entry)}
     >
-      <span className="schedule-matrix-block-subject" style={{ color }}>{entry.subject}</span>
+      <span className="schedule-matrix-block-subject">{entry.subject}</span>
       <span className="schedule-matrix-block-time">{entry.time}</span>
       {entry.room && <span className="schedule-matrix-block-room">{entry.room}</span>}
     </motion.div>

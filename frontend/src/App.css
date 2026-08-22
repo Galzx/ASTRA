@@ -902,30 +902,24 @@ main {
   left: 2px;
   right: 2px;
   background: var(--accent-bg);
-  border: 1px solid var(--accent);
-  border-left: 3px solid var(--accent);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--block-color, var(--accent));
   border-radius: 3px;
   padding: 4px 6px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 1px;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 }
 
 .schedule-matrix-block:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
 }
 
 .schedule-matrix-block-subject {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-h);
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--block-color, var(--accent));
 }
 
 .schedule-matrix-block-time {
@@ -1185,32 +1179,38 @@ html.dark-mode .offline-banner {
 }
 
 .sched-color-swatch {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
   padding: 0;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .sched-color-swatch:hover {
-  transform: scale(1.15);
+  transform: scale(1.1);
 }
 
 .sched-color-swatch.selected {
-  border-color: var(--text-h);
-  transform: scale(1.2);
+  border-color: var(--bg);
+  box-shadow: 0 0 0 2px var(--text-h);
+  transform: scale(1.08);
 }
 
 .sched-color-custom {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 1px solid var(--border);
   padding: 0;
   cursor: pointer;
   background: none;
+  transition: transform 0.15s ease;
+}
+
+.sched-color-custom:hover {
+  transform: scale(1.1);
 }
 
 .sched-modal-footer {
