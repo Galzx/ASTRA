@@ -157,8 +157,14 @@ app.use("/api/auth", authRoutes);
 
 // ── Quota ──────────────────────────────────────────────────
 
-app.get("/api/quota", (req, res) => {
-  res.json(quota.getQuotaStatus());
+app.get("/api/quota", async (req, res) => {
+  try {
+    const status = await quota.getQuotaStatus();
+    res.json(status);
+  } catch (error) {
+    console.error("Failed to load quota status:", error);
+    res.status(500).json({ error: "Failed to load quota status." });
+  }
 });
 
 // ── Knowledge base ─────────────────────────────────────────
