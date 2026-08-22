@@ -10,9 +10,9 @@ class User {
   }
 
   async save() {
+    const hashedPassword = await bcrypt.hash(this.password, 10);
     const self = this;
     return new Promise((resolve, reject) => {
-      const hashedPassword = bcrypt.hashSync(this.password, 10);
       db.run(
         `INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)`,
         [this.username, hashedPassword, this.full_name, this.role],
@@ -37,8 +37,8 @@ class User {
     });
   }
 
-  static verifyPassword(plainPassword, hashedPassword) {
-    return bcrypt.compareSync(plainPassword, hashedPassword);
+  static async verifyPassword(plainPassword, hashedPassword) {
+    return bcrypt.compare(plainPassword, hashedPassword);
   }
 
   describeRole() {

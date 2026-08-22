@@ -1,6 +1,16 @@
 {
-  "dependencies": {
-    "@supabase/supabase-js": "^2.112.1",
-    "express-rate-limit": "^8.6.2"
+  "name": "astra-lite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AsiaTech Smart Technology & Resource Assistant - Lite",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm start --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "start": "npm start --workspace=backend"
   }
 }

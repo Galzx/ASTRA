@@ -115,7 +115,9 @@ function App() {
             {activeView === "Dashboard" && <p>Dashboard coming soon.</p>}
             {activeView === "Chatbot" && <Chatbot username={username} token={token} />}
             {activeView === "Knowledge Base" && <KnowledgeBase />}
-            {activeView === "Manage Knowledge Base" && isAdmin && <AdminKnowledgeBase />}
+            {activeView === "Manage Knowledge Base" && isAdmin && (
+              <AdminKnowledgeBase token={token} />
+            )}
           </div>
         </main>
       </div>

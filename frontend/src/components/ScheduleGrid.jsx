@@ -1,5 +1,5 @@
 // frontend/src/components/ScheduleGrid.jsx
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_BASE_URL } from "../config";
 
@@ -11,6 +11,15 @@ const GRID_END_MIN = 22 * 60;
 const GRID_TOTAL_MIN = GRID_END_MIN - GRID_START_MIN;
 const HOUR_HEIGHT = 56;
 const GRID_HEIGHT = (GRID_TOTAL_MIN / 60) * HOUR_HEIGHT;
+
+// Fixed set of hour marks for the time column — never depends on
+// props or state, so it's computed once at module load instead of
+// being recomputed (even via useMemo) on every render.
+const HOUR_MARKS = (() => {
+  const marks = [];
+  for (let t = GRID_START_MIN; t <= GRID_END_MIN; t += 60) marks.push(t);
+  return marks;
+})();
 
 const PRESET_COLORS = [
   "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444",
@@ -230,9 +239,6 @@ function TimeRangePicker({ value, onChange }) {
     </div>
   );
 }
-
-
-
 
 function EditModal({ entry, color, onSave, onDelete, onClose }) {
   const [subject, setSubject] = useState(entry.subject || "");
@@ -531,6 +537,48 @@ function CustomizeModal({ schedule, colors, onEditRequest, onDeleteRequest, onAd
   );
 }
 
+// ── Schedule matrix block (memoized) ─────────────────────────
+// Rendered once per class per day. Without memo, every block in
+// the grid re-renders whenever ScheduleGrid's own state changes
+// (opening the edit modal, the customize modal, clear-confirm,
+// etc.) even though the block's own data hasn't changed. entry
+// and color stay referentially/value-stable across those renders
+// (entriesByDay is cached by useMemo, colors[id] is a stable
+// string), so this actually skips re-rendering in practice.
+
+const ScheduleBlock = memo(function ScheduleBlock({ entry, color, onSelect }) {
+  const top = ((entry.start - GRID_START_MIN) / 60) * HOUR_HEIGHT;
+  const height = Math.max(((entry.end - entry.start) / 60) * HOUR_HEIGHT, 20);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1, top, height }}
+      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
+      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+      className="schedule-matrix-block"
+      style={{
+        position: "absolute",
+        top,
+        height,
+        left: 0,
+        right: 0,
+        background: color + "26",
+        borderColor: color,
+        borderLeftColor: color,
+        cursor: "pointer"
+      }}
+      title={`${entry.subject}${entry.room ? " — " + entry.room : ""} — click to edit`}
+      onClick={() => onSelect(entry)}
+    >
+      <span className="schedule-matrix-block-subject" style={{ color }}>{entry.subject}</span>
+      <span className="schedule-matrix-block-time">{entry.time}</span>
+      {entry.room && <span className="schedule-matrix-block-room">{entry.room}</span>}
+    </motion.div>
+  );
+});
+
 // ── Main Component ─────────────────────────────────────────
 
 function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
@@ -543,12 +591,6 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
   useEffect(() => {
     saveColors(colors);
   }, [colors]);
-
-  const hourMarks = useMemo(() => {
-    const marks = [];
-    for (let t = GRID_START_MIN; t <= GRID_END_MIN; t += 60) marks.push(t);
-    return marks;
-  }, []);
 
   const entriesByDay = useMemo(() => {
     const map = {};
@@ -566,7 +608,7 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
 
   const hasAnySchedule = schedule.some((entry) => entry.day && entry.time);
 
-  async function handleSaveEntry(entryId, fields, color) {
+  const handleSaveEntry = useCallback(async (entryId, fields, color) => {
     try {
       await fetch(`${API_BASE_URL}/api/schedule/${entryId}`, {
         method: "PUT",
@@ -575,29 +617,31 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
       });
       setColors((prev) => ({ ...prev, [entryId]: color }));
       setEditingEntry(null);
-      onScheduleChange?.();
+      await onScheduleChange?.();
     } catch (err) {
       console.error("Failed to save entry:", err);
     }
-  }
+  }, [token, onScheduleChange]);
 
-  async function handleDeleteEntry(entryId) {
+  const handleDeleteEntry = useCallback(async (entryId) => {
     try {
       await fetch(`${API_BASE_URL}/api/schedule/${entryId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
-      const newColors = { ...colors };
-      delete newColors[entryId];
-      setColors(newColors);
+      setColors((prev) => {
+        const next = { ...prev };
+        delete next[entryId];
+        return next;
+      });
       setEditingEntry(null);
-      onScheduleChange?.();
+      await onScheduleChange?.();
     } catch (err) {
       console.error("Failed to delete entry:", err);
     }
-  }
+  }, [token, onScheduleChange]);
 
-  async function handleClearAll() {
+  const handleClearAll = useCallback(async () => {
     setClearing(true);
     try {
       await fetch(`${API_BASE_URL}/api/schedule/me`, {
@@ -606,15 +650,15 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
       });
       setColors({});
       setConfirmClear(false);
-      onScheduleChange?.();
+      await onScheduleChange?.();
     } catch (err) {
       console.error("Failed to clear schedule:", err);
     } finally {
       setClearing(false);
     }
-  }
+  }, [token, onScheduleChange]);
 
-  async function handleAddEntry(fields, color) {
+  const handleAddEntry = useCallback(async (fields, color) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/schedule`, {
         method: "POST",
@@ -624,15 +668,15 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
       if (!res.ok) return false;
       const entry = await res.json();
       if (entry?.id) setColors((prev) => ({ ...prev, [entry.id]: color }));
-      onScheduleChange?.();
+      await onScheduleChange?.();
       return true;
     } catch (err) {
       console.error("Failed to add entry:", err);
       return false;
     }
-  }
+  }, [token, onScheduleChange]);
 
-  async function handleBulkMove(fromDay, toDay, newTime) {
+  const handleBulkMove = useCallback(async (fromDay, toDay, newTime) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/schedule/bulk-move`, {
         method: "POST",
@@ -640,13 +684,13 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
         body: JSON.stringify({ fromDay, toDay, newTime })
       });
       const data = await res.json();
-      onScheduleChange?.();
+      await onScheduleChange?.();
       return data;
     } catch (err) {
       console.error("Failed bulk move:", err);
       return null;
     }
-  }
+  }, [token, onScheduleChange]);
 
   return (
     <motion.aside
@@ -698,7 +742,7 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
           ))}
 
           <div className="schedule-matrix-timecol" style={{ height: GRID_HEIGHT }}>
-            {hourMarks.map((mark) => (
+            {HOUR_MARKS.map((mark) => (
               <div
                 key={mark}
                 className="schedule-matrix-hourlabel"
@@ -712,39 +756,14 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
           {DAYS.map((day) => (
             <div key={day} className="schedule-matrix-daycol" style={{ height: GRID_HEIGHT }}>
               <AnimatePresence initial={false}>
-                {entriesByDay[day].map((entry) => {
-                  const top = ((entry.start - GRID_START_MIN) / 60) * HOUR_HEIGHT;
-                  const height = ((entry.end - entry.start) / 60) * HOUR_HEIGHT;
-                  const color = colors[entry.id] || PRESET_COLORS[0];
-                  return (
-                    <motion.div
-                      key={entry.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1, top, height: Math.max(height, 20) }}
-                      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
-                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                      className="schedule-matrix-block"
-                      style={{
-                        position: "absolute",
-                        top,
-                        height: Math.max(height, 20),
-                        left: 0,
-                        right: 0,
-                        background: color + "26",
-                        borderColor: color,
-                        borderLeftColor: color,
-                        cursor: "pointer"
-                      }}
-                      title={`${entry.subject}${entry.room ? " — " + entry.room : ""} — click to edit`}
-                      onClick={() => setEditingEntry(entry)}
-                    >
-                      <span className="schedule-matrix-block-subject" style={{ color }}>{entry.subject}</span>
-                      <span className="schedule-matrix-block-time">{entry.time}</span>
-                      {entry.room && <span className="schedule-matrix-block-room">{entry.room}</span>}
-                    </motion.div>
-                  );
-                })}
+                {entriesByDay[day].map((entry) => (
+                  <ScheduleBlock
+                    key={entry.id}
+                    entry={entry}
+                    color={colors[entry.id] || PRESET_COLORS[0]}
+                    onSelect={setEditingEntry}
+                  />
+                ))}
               </AnimatePresence>
             </div>
           ))}
@@ -776,4 +795,4 @@ function ScheduleGrid({ schedule, onClose, onScheduleChange, token }) {
   );
 }
 
-export default ScheduleGrid;
+export default memo(ScheduleGrid);

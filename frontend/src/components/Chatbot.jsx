@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { AnimatePresence } from "framer-motion";
 import ChatMessage from "../models/ChatMessage";
 import ScheduleGrid from "./ScheduleGrid";
@@ -190,7 +190,7 @@ function CheckIcon() {
 
 // ── Quota Meter (header) ─────────────────────────────────────
 
-function QuotaMeter({ percent }) {
+const QuotaMeter = memo(function QuotaMeter({ percent }) {
   if (percent === null || percent === undefined) return null;
 
   const level = percent >= 90 ? "critical" : percent >= 70 ? "warning" : "ok";
@@ -204,11 +204,11 @@ function QuotaMeter({ percent }) {
       <span className="quota-meter-label">{percent}%</span>
     </div>
   );
-}
+});
 
 // ── Quota Banner (rate-limited state) ────────────────────────
 
-function QuotaBanner({ seconds, onDone }) {
+const QuotaBanner = memo(function QuotaBanner({ seconds, onDone }) {
   const [remaining, setRemaining] = useState(seconds);
 
   useEffect(() => {
@@ -236,7 +236,7 @@ function QuotaBanner({ seconds, onDone }) {
       </span>
     </div>
   );
-}
+});
 
 // ── Thinking Indicator (elapsed-time, replaces plain dots) ──
 
@@ -258,6 +258,77 @@ function ThinkingIndicator() {
     </div>
   );
 }
+
+// ── Chat message bubble (memoized — avoids re-rendering the
+//    whole history on every keystroke / typing-state change) ──
+
+const ChatMessageItem = memo(function ChatMessageItem({ msg }) {
+  const isStudent = msg.sender === "student";
+  return (
+    <div className={isStudent ? "message-wrapper student-wrapper" : "message-wrapper astra-wrapper"}>
+      <p className={isStudent ? "student-message" : "astra-message"}>
+        {msg.text}
+      </p>
+      <span className="message-time">{msg.getFormattedTime()}</span>
+    </div>
+  );
+});
+
+// ── Chat history sidebar row (memoized — same reasoning) ─────
+
+const ChatHistoryItem = memo(function ChatHistoryItem({
+  session,
+  isActive,
+  isConfirmingDelete,
+  onSelect,
+  onRequestDelete,
+  onConfirmDelete,
+  onCancelDelete
+}) {
+  return (
+    <div
+      className={`chat-history-item${isActive ? " active" : ""}`}
+      onClick={() => onSelect(session)}
+    >
+      <div className="chat-history-item-row">
+        <div className="chat-history-item-text">
+          <div className="chat-history-item-title">{session.title}</div>
+          <div className="chat-history-item-meta">{formatSessionMeta(session.updatedAt)}</div>
+        </div>
+
+        {isConfirmingDelete ? (
+          <div className="history-item-confirm" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="history-confirm-yes"
+              onClick={() => onConfirmDelete(session.id)}
+              title="Confirm delete"
+            >
+              <CheckIcon />
+            </button>
+            <button
+              className="history-confirm-no"
+              onClick={onCancelDelete}
+              title="Cancel"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        ) : (
+          <button
+            className="chat-history-item-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestDelete(session.id);
+            }}
+            title="Delete chat"
+          >
+            <TrashIcon />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
 
 // ── Chatbot ────────────────────────────────────────────────
 
@@ -304,6 +375,15 @@ function Chatbot({ username, fullName, token }) {
   const fileInputRef = useRef(null);
   const scheduleInputRef = useRef(null);
   const attachMenuRef = useRef(null);
+
+  // Guards against out-of-order responses: fetchSchedule can be
+  // triggered from several places in quick succession (opening the
+  // panel, then immediately adding/editing/deleting a class). Each
+  // call increments this counter; a response only gets applied if
+  // it's still the most recently *issued* request when it resolves.
+  // Without this, an earlier, slower-to-resolve GET can overwrite
+  // newer data with stale data — the "my add didn't show up" bug.
+  const scheduleRequestId = useRef(0);
 
   // Keep the active session in sync with whatever is on screen.
   // Creates a new session on the first message of a fresh chat,
@@ -411,11 +491,16 @@ function Chatbot({ username, fullName, token }) {
   }, [fetchQuota]);
 
   const fetchSchedule = useCallback(async () => {
+    const requestId = ++scheduleRequestId.current;
     try {
       const response = await fetch(`${API_BASE_URL}/api/schedule/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
+      // A newer fetchSchedule call has been issued since this one
+      // started — this response is stale, drop it so it can't
+      // clobber more recent data.
+      if (requestId !== scheduleRequestId.current) return;
       setSchedule(data.schedule || []);
     } catch (error) {
       console.error("Failed to fetch schedule:", error);
@@ -426,6 +511,10 @@ function Chatbot({ username, fullName, token }) {
     if (!isScheduleOpen) fetchSchedule();
     setIsScheduleOpen((prev) => !prev);
   };
+
+  const closeSchedulePanel = useCallback(() => {
+    setIsScheduleOpen(false);
+  }, []);
 
   const toggleHistorySidebar = () => {
     setIsHistorySidebarOpen((prev) => !prev);
@@ -448,6 +537,10 @@ function Chatbot({ username, fullName, token }) {
     }
     return false;
   }
+
+  const clearQuotaSeconds = useCallback(() => {
+    setQuotaSeconds(null);
+  }, []);
 
   async function sendMessage() {
     if (!message.trim() && !attachedFile) return;
@@ -575,7 +668,7 @@ function Chatbot({ username, fullName, token }) {
     inputRef.current?.focus();
   }
 
-  function loadSession(session) {
+  const loadSession = useCallback((session) => {
     if (session.id === currentSessionId) return;
     setMessages(session.messages);
     setCurrentSessionId(session.id);
@@ -583,16 +676,20 @@ function Chatbot({ username, fullName, token }) {
     setQuotaSeconds(null);
     inputRef.current?.focus();
     if (isMobile) setIsHistorySidebarOpen(false);
-  }
+  }, [currentSessionId, isMobile]);
 
-  function deleteSession(id) {
+  const deleteSession = useCallback((id) => {
     setChatSessions((prev) => prev.filter((s) => s.id !== id));
     if (id === currentSessionId) {
       setMessages([]);
       setCurrentSessionId(null);
     }
     setConfirmDeleteId(null);
-  }
+  }, [currentSessionId]);
+
+  const cancelDeleteConfirm = useCallback(() => {
+    setConfirmDeleteId(null);
+  }, []);
 
   function clearAllHistory() {
     setChatSessions([]);
@@ -601,7 +698,10 @@ function Chatbot({ username, fullName, token }) {
     setConfirmClearAll(false);
   }
 
-  const sortedSessions = [...chatSessions].sort((a, b) => b.updatedAt - a.updatedAt);
+  const sortedSessions = useMemo(
+    () => [...chatSessions].sort((a, b) => b.updatedAt - a.updatedAt),
+    [chatSessions]
+  );
 
   return (
     <div className="chatbot-layout" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
@@ -645,48 +745,16 @@ function Chatbot({ username, fullName, token }) {
             <p className="chat-history-empty">No chat history yet.</p>
           ) : (
             sortedSessions.map((session) => (
-              <div
+              <ChatHistoryItem
                 key={session.id}
-                className={`chat-history-item${session.id === currentSessionId ? " active" : ""}`}
-                onClick={() => loadSession(session)}
-              >
-                <div className="chat-history-item-row">
-                  <div className="chat-history-item-text">
-                    <div className="chat-history-item-title">{session.title}</div>
-                    <div className="chat-history-item-meta">{formatSessionMeta(session.updatedAt)}</div>
-                  </div>
-
-                  {confirmDeleteId === session.id ? (
-                    <div className="history-item-confirm" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        className="history-confirm-yes"
-                        onClick={() => deleteSession(session.id)}
-                        title="Confirm delete"
-                      >
-                        <CheckIcon />
-                      </button>
-                      <button
-                        className="history-confirm-no"
-                        onClick={() => setConfirmDeleteId(null)}
-                        title="Cancel"
-                      >
-                        <CloseIcon />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      className="chat-history-item-delete"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmDeleteId(session.id);
-                      }}
-                      title="Delete chat"
-                    >
-                      <TrashIcon />
-                    </button>
-                  )}
-                </div>
-              </div>
+                session={session}
+                isActive={session.id === currentSessionId}
+                isConfirmingDelete={confirmDeleteId === session.id}
+                onSelect={loadSession}
+                onRequestDelete={setConfirmDeleteId}
+                onConfirmDelete={deleteSession}
+                onCancelDelete={cancelDeleteConfirm}
+              />
             ))
           )}
         </div>
@@ -757,7 +825,7 @@ function Chatbot({ username, fullName, token }) {
         {quotaSeconds && (
           <QuotaBanner
             seconds={quotaSeconds}
-            onDone={() => setQuotaSeconds(null)}
+            onDone={clearQuotaSeconds}
           />
         )}
 
@@ -770,15 +838,7 @@ function Chatbot({ username, fullName, token }) {
           )}
 
           {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={msg.sender === "student" ? "message-wrapper student-wrapper" : "message-wrapper astra-wrapper"}
-            >
-              <p className={msg.sender === "student" ? "student-message" : "astra-message"}>
-                {msg.text}
-              </p>
-              <span className="message-time">{msg.getFormattedTime()}</span>
-            </div>
+            <ChatMessageItem key={index} msg={msg} />
           ))}
 
           {isTyping && <ThinkingIndicator />}
@@ -869,7 +929,7 @@ function Chatbot({ username, fullName, token }) {
           <ScheduleGrid
             key="schedule-panel"
             schedule={schedule}
-            onClose={() => setIsScheduleOpen(false)}
+            onClose={closeSchedulePanel}
             token={token}
             onScheduleChange={fetchSchedule}
           />

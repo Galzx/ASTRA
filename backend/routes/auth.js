@@ -21,6 +21,10 @@ if (!ADMIN_KEY) {
   );
 }
 
+const STUDENT_NUMBER_PATTERN = /^1-\d{6}[a-zA-Z]$/;
+const MIN_PASSWORD_LENGTH = 8;
+const VALID_ROLES = ["student", "admin"];
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
@@ -39,10 +43,29 @@ const signupLimiter = rateLimit({
 
 router.post("/signup", signupLimiter, async (req, res) => {
   try {
-    const { username, password, full_name, role, admin_key } = req.body;
+    let { username, password, full_name, role, admin_key } = req.body;
 
     if (!username || !password || !full_name || !role) {
       return res.status(400).json({ message: "All fields are required" });
+    }
+
+    username = String(username).trim();
+    full_name = String(full_name).trim();
+
+    if (!STUDENT_NUMBER_PATTERN.test(username)) {
+      return res.status(400).json({ message: "Student number must be in the format 1-XXXXXXf (six digits, one letter)" });
+    }
+
+    if (!full_name) {
+      return res.status(400).json({ message: "Full name is required" });
+    }
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
     }
 
     if (role === "admin" && admin_key !== ADMIN_KEY) {
@@ -78,18 +101,20 @@ router.post("/signup", signupLimiter, async (req, res) => {
 
 router.post("/login", loginLimiter, async (req, res) => {
   try {
-    const { username, password } = req.body;
+    let { username, password } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ message: "Student number and password are required" });
     }
+
+    username = String(username).trim();
 
     const user = await User.findByUsername(username);
     if (!user) {
       return res.status(401).json({ message: "Invalid student number or password" });
     }
 
-    const passwordMatch = User.verifyPassword(password, user.password);
+    const passwordMatch = await User.verifyPassword(password, user.password);
     if (!passwordMatch) {
       return res.status(401).json({ message: "Invalid student number or password" });
     }

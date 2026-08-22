@@ -3,7 +3,8 @@ node_modules/
 
 # Environment files
 .env
-.env.*
+.env.local
+.env.*.local
 
 # Build files
 dist/
@@ -12,6 +13,9 @@ build/
 # Database
 backend/database/*.db
 
+# Temp uploads
+backend/uploads_tmp/
+
 # Logs
 *.log
 
@@ -19,4 +23,5 @@ backend/database/*.db
 .DS_Store
 Thumbs.db
 
-.env
+# Nested clone artifact
+/ASTRA-Lite/

@@ -3,25 +3,57 @@ const db = require("../database/database");
 
 function saveSchedule(userId, entries) {
   return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run("DELETE FROM schedules WHERE user_id = ?", [userId], (err) => {
-        if (err) { reject(err); return; }
-        if (!entries || entries.length === 0) { resolve([]); return; }
+    db.run("BEGIN TRANSACTION", (beginErr) => {
+      if (beginErr) { reject(beginErr); return; }
+
+      db.run("DELETE FROM schedules WHERE user_id = ?", [userId], (delErr) => {
+        if (delErr) {
+          db.run("ROLLBACK");
+          reject(delErr);
+          return;
+        }
+
+        if (!entries || entries.length === 0) {
+          db.run("COMMIT", (commitErr) => {
+            if (commitErr) { reject(commitErr); return; }
+            resolve([]);
+          });
+          return;
+        }
 
         const stmt = db.prepare(
           "INSERT INTO schedules (user_id, subject, day, time, room) VALUES (?, ?, ?, ?, ?)"
         );
 
+        let insertError = null;
         entries.forEach((entry) => {
-          stmt.run([userId, entry.subject || "", entry.day || "", entry.time || "", entry.room || ""]);
+          if (!insertError) {
+            stmt.run([userId, entry.subject || "", entry.day || "", entry.time || "", entry.room || ""], (err) => {
+              if (err && !insertError) insertError = err;
+            });
+          }
         });
 
-        stmt.finalize((err) => {
-          if (err) { reject(err); return; }
-          // Re-query to return the saved rows with their DB-assigned IDs.
-          db.all("SELECT * FROM schedules WHERE user_id = ? ORDER BY id ASC", [userId], (err2, rows) => {
-            if (err2) { reject(err2); return; }
-            resolve(rows);
+        stmt.finalize((finalizeErr) => {
+          const err = insertError || finalizeErr;
+          if (err) {
+            db.run("ROLLBACK");
+            reject(err);
+            return;
+          }
+
+          db.run("COMMIT", (commitErr) => {
+            if (commitErr) {
+              db.run("ROLLBACK");
+              reject(commitErr);
+              return;
+            }
+
+            // Re-query to return the saved rows with their DB-assigned IDs.
+            db.all("SELECT * FROM schedules WHERE user_id = ? ORDER BY id ASC", [userId], (err2, rows) => {
+              if (err2) { reject(err2); return; }
+              resolve(rows);
+            });
           });
         });
       });

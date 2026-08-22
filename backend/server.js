@@ -1,5 +1,6 @@
 // backend/server.js
 const express = require("express");
+const helmet = require("helmet");
 const cors = require("cors");
 const multer = require("multer");
 const fs = require("fs");
@@ -47,8 +48,52 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.set("trust proxy", 1);
+app.use(helmet());
 
-const upload = multer({ dest: path.join(__dirname, "uploads_tmp") });
+// ── Upload validation ─────────────────────────────────────
+// Only images and PDFs are accepted — that's all Gemini's file-based
+// endpoints (chat-with-file, schedule extraction) actually need.
+// 15MB cap covers a scanned schedule/photo without leaving the free-tier
+// instance exposed to a large-body DoS.
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf"
+]);
+
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
+
+const upload = multer({
+  dest: path.join(__dirname, "uploads_tmp"),
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype)) {
+      return cb(new Error("UNSUPPORTED_FILE_TYPE"));
+    }
+    cb(null, true);
+  }
+});
+
+// Wraps upload.single("file") so multer's own errors (bad type, too large)
+// come back as a clean 400 instead of falling through to a 500.
+function handleUpload(req, res, next) {
+  upload.single("file")(req, res, (err) => {
+    if (!err) return next();
+
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ error: `File is too large. Max size is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.` });
+    }
+    if (err.message === "UNSUPPORTED_FILE_TYPE") {
+      return res.status(400).json({ error: "Unsupported file type. Please upload an image or PDF." });
+    }
+    console.error("Upload error:", err);
+    return res.status(400).json({ error: "Failed to process upload." });
+  });
+}
 
 function parseStartMinutes(timeStr) {
   if (!timeStr) return null;
@@ -68,6 +113,12 @@ function parseStartMinutes(timeStr) {
 function canonicalDay(day) {
   if (!day) return null;
   return DAYS.find((d) => d.toLowerCase() === day.toLowerCase()) || null;
+}
+
+// A valid h:MM AM/PM string, e.g. "7:00 AM". Used to sanity-check
+// Gemini's add-intent output before trusting it enough to write to the DB.
+function isValidTimeString(timeStr) {
+  return typeof timeStr === "string" && /^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(timeStr.trim());
 }
 
 function resolveTargetEntries(schedule, editIntent) {
@@ -272,20 +323,23 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
     }
 
     const isScheduleRelated =
-      /schedule|class(es)?|move|reschedul|change.*day|(do|am).*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i.test(message);
+      /schedule|class(es)?|move|reschedul|add|create|change.*day|(do|am).*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i.test(message);
 
     if (isScheduleRelated) {
       const schedule = await getScheduleByUser(req.user.id);
 
-      if (!schedule || schedule.length === 0) {
-        return res.json({
-          reply: "You haven't uploaded your schedule yet. Use the Upload my schedule button to add it."
-        });
-      }
-
+      // Note: an ADD request is valid even with an empty schedule, so this
+      // early return only applies when there's nothing to move/query — the
+      // add branch below runs regardless of whether schedule is empty.
       const editIntent = await parseScheduleEditRequest(message, schedule);
 
       if (editIntent.action === "move") {
+        if (!schedule || schedule.length === 0) {
+          return res.json({
+            reply: "You haven't uploaded your schedule yet. Use the Upload my schedule button to add it."
+          });
+        }
+
         const validToDay = canonicalDay(editIntent.to_day);
         if (!validToDay) {
           return res.json({
@@ -311,13 +365,48 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
         const timeNote = editIntent.new_time ? ` at ${editIntent.new_time}` : "";
 
         return res.json({
-          reply: `Done — moved ${whatMoved} from ${targets[0].day} to ${editIntent.to_day}${timeNote}.`
+          reply: `Done — moved ${whatMoved} from ${targets[0].day} to ${editIntent.to_day}${timeNote}.`,
+          scheduleChanged: true
+        });
+      }
+
+      if (editIntent.action === "add") {
+        const validDay = canonicalDay(editIntent.day);
+        const startOk = isValidTimeString(editIntent.start_time);
+        const endOk = isValidTimeString(editIntent.end_time);
+
+        if (!validDay || !editIntent.subject || !startOk || !endOk) {
+          return res.json({
+            reply: "I wasn't able to tell exactly which class, day, and time to add. Could you rephrase it like: \"add Data Structures on Monday, 7:00 AM to 8:30 AM, Room 202\"?"
+          });
+        }
+
+        const time = `${editIntent.start_time} - ${editIntent.end_time}`;
+        const entry = await addScheduleEntry(
+          req.user.id,
+          editIntent.subject.trim(),
+          validDay,
+          time,
+          (editIntent.room || "").trim()
+        );
+
+        const roomNote = entry.room ? ` in ${entry.room}` : "";
+        return res.json({
+          reply: `Done — added ${entry.subject} on ${entry.day} at ${entry.time}${roomNote}.`,
+          scheduleChanged: true
         });
       }
 
       if (editIntent.action === "unclear") {
         return res.json({
-          reply: "I wasn't sure which day you meant to move from. Could you rephrase which day and which class?"
+          reply: "I wasn't sure exactly what you meant. Could you rephrase which class, day, and time?"
+        });
+      }
+
+      // action === "none" — treat as a question about the existing schedule.
+      if (!schedule || schedule.length === 0) {
+        return res.json({
+          reply: "You haven't uploaded your schedule yet. Use the Upload my schedule button to add it."
         });
       }
 
@@ -340,7 +429,7 @@ app.post("/api/chat", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/api/chat/file", authenticateToken, upload.single("file"), async (req, res) => {
+app.post("/api/chat/file", authenticateToken, handleUpload, async (req, res) => {
   const uploadedFile = req.file;
   try {
     const { message } = req.body || {};
@@ -365,7 +454,7 @@ app.post("/api/chat/file", authenticateToken, upload.single("file"), async (req,
   }
 });
 
-app.post("/api/schedule/upload", authenticateToken, upload.single("file"), async (req, res) => {
+app.post("/api/schedule/upload", authenticateToken, handleUpload, async (req, res) => {
   const uploadedFile = req.file;
   try {
     if (!uploadedFile) return res.status(400).json({ error: "File is required" });

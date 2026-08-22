@@ -37,11 +37,10 @@ class QuotaError extends Error {
 // ── Retry wrapper ──────────────────────────────────────────
 
 async function withRetry(fn, maxRetries = 2) {
-  // Count once per user-initiated call, not once per retry attempt.
-  quota.recordRequest();
   let attempt = 0;
   while (true) {
     try {
+      quota.recordRequest();
       return await fn();
     } catch (error) {
       const isQuota = error?.status === 429 ||
@@ -180,19 +179,28 @@ async function parseScheduleEditRequest(message, scheduleEntries) {
 
   const prompt =
     "You are parsing a student's message to decide if they are asking to MOVE one or more classes " +
-    "to a different day (and optionally a different time) on their schedule. Typos and casual phrasing " +
-    "are common — interpret intent, don't require exact wording. " +
-    "IMPORTANT — do not confuse a QUESTION with a MOVE COMMAND. Only classify the message as a move " +
+    "to a different day (and optionally a different time) on their schedule, or ADD a new class. " +
+    "Typos and casual phrasing are common — interpret intent, don't require exact wording. " +
+    "IMPORTANT — do not confuse a QUESTION with a MOVE/ADD COMMAND. Only classify the message as a move " +
     "request if the student is explicitly instructing a change, using language like \"move\", " +
     "\"reschedule\", \"shift\", \"change ... to ...\", \"put ... on ...\", AND the message clearly states " +
-    "a destination day. If the student is only asking about their schedule — e.g. \"do I have class on " +
+    "a destination day. Only classify as an add request if the student is explicitly asking to add " +
+    "or create a new class, using language like \"add\", \"create\", \"new class\", \"put ... on ...\". " +
+    "If the student is only asking about their schedule — e.g. \"do I have class on " +
     "Monday\", \"what classes are on Friday\", \"when is my math class\" — with no requested change, " +
-    "that is NOT a move request, even though it may mention day names or subjects. Return {\"action\":\"none\"} " +
+    "that is NOT a move or add request, even though it may mention day names or subjects. Return {\"action\":\"none\"} " +
     "for those. " +
     "The days currently present in the student's schedule are: " + daysPresent.join(", ") + ". " +
     "The subjects currently present are: " + subjectsPresent.join(", ") + ". " +
     "Return ONLY a JSON object, with no markdown formatting, no code fences, and no explanation. " +
-    "If the message is a genuine move request, return exactly: " +
+    "If the message is a genuine ADD request, return exactly: " +
+    "{\"action\":\"add\"," +
+    "\"subject\":\"<the subject/class name>\"," +
+    "\"day\":\"<the day, normalized to a full day name like Monday>\"," +
+    "\"start_time\":\"<start time like 7:00 AM>\"," +
+    "\"end_time\":\"<end time like 8:30 AM>\"," +
+    "\"room\":<the room name/number if mentioned, otherwise null>}. " +
+    "If the message is a genuine MOVE request, return exactly: " +
     "{\"action\":\"move\"," +
     "\"from_day\":<the source day from the schedule's day list, or null if the student named a specific " +
     "subject instead of a day and you don't know which day it falls on>," +
@@ -207,7 +215,7 @@ async function parseScheduleEditRequest(message, scheduleEntries) {
     "Use selector \"first\" if they refer to their first/earliest class on a stated day. " +
     "Use selector \"last\" if they refer to their last/latest class on a stated day. " +
     "Note: selector \"first\" or \"last\" REQUIRE a from_day since they depend on a specific day's ordering. " +
-    "If the message is NOT a move request (including plain questions), return exactly: " +
+    "If the message is NOT a move or add request (including plain questions), return exactly: " +
     "{\"action\":\"none\"}. " +
     "If it looks like a move request but you cannot confidently determine to_day, or (for selectors " +
     "\"all\", \"first\", \"last\") cannot confidently match from_day to one of the schedule's actual days, " +
